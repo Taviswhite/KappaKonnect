@@ -62,7 +62,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 // Rate limit configuration
 const RATE_LIMIT = {
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 100, // Max 100 requests per minute per IP
+  maxRequests: 1000, // Max 1000 requests per minute per IP
 };
 
 /**
@@ -141,10 +141,13 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
   const userAgent = request.headers.get('user-agent') || '';
   const clientIP = getClientIP(request);
 
+  // Log every request to confirm middleware is running
+  console.log(`[WAF] ${method} ${path} from ${clientIP}${searchParams ? `?${searchParams.substring(0, 100)}` : ''}`);
+
   // 1. Check rate limiting FIRST
   const rateLimitCheck = checkRateLimit(clientIP);
   if (!rateLimitCheck.allowed) {
-    console.warn(`[WAF] Rate limit exceeded: ${clientIP}`);
+    console.error(`[WAF] BLOCKED - Rate limit exceeded: ${clientIP} - ${path}`);
     return new Response(
       JSON.stringify({
         error: 'Rate limit exceeded',
@@ -162,13 +165,13 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
 
   // 2. Block sensitive files
   if (detectThreat(path, THREAT_PATTERNS.sensitiveFiles)) {
-    console.warn(`[WAF] Sensitive file access blocked: ${path} from ${clientIP}`);
+    console.error(`[WAF] BLOCKED - Sensitive file access: ${path} from ${clientIP}`);
     return new Response('Not Found', { status: 404 });
   }
 
   // 3. Check path for threats
   if (detectThreat(path, THREAT_PATTERNS.pathTraversal)) {
-    console.warn(`[WAF] Path traversal attempt blocked: ${path} from ${clientIP}`);
+    console.error(`[WAF] BLOCKED - Path traversal attempt: ${path} from ${clientIP}`);
     return new Response(
       JSON.stringify({
         error: 'Forbidden',
@@ -188,7 +191,7 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
       detectThreat(searchParams, THREAT_PATTERNS.xss) ||
       detectThreat(searchParams, THREAT_PATTERNS.commandInjection)
     ) {
-      console.warn(`[WAF] Malicious query detected: ${searchParams} from ${clientIP}`);
+      console.error(`[WAF] BLOCKED - Malicious query: ${searchParams.substring(0, 200)} from ${clientIP}`);
       return new Response(
         JSON.stringify({
           error: 'Forbidden',
@@ -205,6 +208,7 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
   // Request passed all checks - continue (return undefined to allow request through)
   // Note: We can't modify headers in Edge Middleware for Vite projects the same way
   // Security headers are already set in vercel.json
+  console.log(`[WAF] ALLOWED - ${method} ${path} from ${clientIP}`);
   return undefined;
 }
 
