@@ -2,11 +2,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen } from "lucide-react";
+import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { CreateDocumentDialog } from "@/components/dialogs/CreateDocumentDialog";
+import { CreateFolderDialog } from "@/components/dialogs/CreateFolderDialog";
 import { toast } from "sonner";
 
 const statusConfig = {
@@ -60,14 +62,22 @@ const Documents = () => {
             <p className="text-muted-foreground mt-1">Manage and sign important documents</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => toast.info("Upload coming soon!")}>
-              <Upload className="w-4 h-4 mr-2" />
-              Upload
-            </Button>
-            <Button variant="hero" size="sm" onClick={() => toast.info("Request signature coming soon!")}>
-              <PenTool className="w-4 h-4 mr-2" />
-              Request Signature
-            </Button>
+            <CreateDocumentDialog 
+              trigger={
+                <Button variant="outline" size="sm">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </Button>
+              }
+            />
+            <CreateDocumentDialog 
+              trigger={
+                <Button variant="hero" size="sm">
+                  <PenTool className="w-4 h-4 mr-2" />
+                  New Document
+                </Button>
+              }
+            />
           </div>
         </div>
 
@@ -86,7 +96,16 @@ const Documents = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Folders Sidebar */}
           <div className="glass-card rounded-xl p-4">
-            <h3 className="font-display font-bold mb-4">Folders</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold">Folders</h3>
+              <CreateFolderDialog 
+                trigger={
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                }
+              />
+            </div>
             {folders.length === 0 ? (
               <p className="text-sm text-muted-foreground">No folders yet</p>
             ) : (

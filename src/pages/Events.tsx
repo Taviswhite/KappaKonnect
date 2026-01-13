@@ -2,12 +2,14 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, MapPin, Clock, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, isSameDay } from "date-fns";
+import { CreateEventDialog } from "@/components/dialogs/CreateEventDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const typeColors = {
   meeting: "bg-primary/20 text-primary border-primary/30",
@@ -25,6 +27,8 @@ const months = [
 const Events = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch events from database
   const { data: events = [], isLoading } = useQuery({
@@ -40,6 +44,40 @@ const Events = () => {
     },
   });
 
+  // RSVP mutation
+  const rsvpMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      // Check if already RSVP'd
+      const { data: existing } = await supabase
+        .from("rsvps")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .single();
+      
+      if (existing) {
+        throw new Error("You've already RSVP'd to this event");
+      }
+
+      const { error } = await supabase.from("rsvps").insert({
+        event_id: eventId,
+        user_id: user.id,
+        status: "going",
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("RSVP confirmed!");
+      queryClient.invalidateQueries({ queryKey: ["rsvps"] });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -47,12 +85,10 @@ const Events = () => {
     const lastDay = new Date(year, month + 1, 0);
     const days = [];
 
-    // Add empty slots for days before the first day of month
     for (let i = 0; i < firstDay.getDay(); i++) {
       days.push(null);
     }
 
-    // Add all days of the month
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push(i);
     }
@@ -94,10 +130,7 @@ const Events = () => {
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            <Button variant="hero" size="sm" onClick={() => toast.info("Create event feature coming soon!")}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Event
-            </Button>
+            <CreateEventDialog />
           </div>
         </div>
 
@@ -205,8 +238,13 @@ const Events = () => {
                         )}
                       </div>
                       <div className="flex items-center justify-end mt-4">
-                        <Button size="sm" variant="hero" onClick={() => toast.success("RSVP confirmed!")}>
-                          RSVP
+                        <Button 
+                          size="sm" 
+                          variant="hero" 
+                          onClick={() => rsvpMutation.mutate(event.id)}
+                          disabled={rsvpMutation.isPending}
+                        >
+                          {rsvpMutation.isPending ? "..." : "RSVP"}
                         </Button>
                       </div>
                     </div>

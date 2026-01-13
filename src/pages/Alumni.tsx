@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { CreateAlumniDialog } from "@/components/dialogs/CreateAlumniDialog";
 
 const Alumni = () => {
   // Fetch alumni
@@ -58,9 +59,9 @@ const Alumni = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Alumni Portal</h1>
             <p className="text-muted-foreground mt-1">Connect with brothers who came before</p>
           </div>
-          <Button variant="hero" size="sm" onClick={() => toast.info("Invite alumni coming soon!")}>
-            Invite Alumni
-          </Button>
+          <CreateAlumniDialog 
+            trigger={<Button variant="hero" size="sm">Add Alumni</Button>}
+          />
         </div>
 
         {/* Stats */}

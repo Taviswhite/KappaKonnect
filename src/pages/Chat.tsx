@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { CreateChannelDialog } from "@/components/dialogs/CreateChannelDialog";
 
 const Chat = () => {
   const { user } = useAuth();
@@ -141,9 +142,13 @@ const Chat = () => {
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Channels
                 </span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toast.info("Create channel coming soon!")}>
-                  <span className="text-lg">+</span>
-                </Button>
+                <CreateChannelDialog
+                  trigger={
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <span className="text-lg">+</span>
+                    </Button>
+                  }
+                />
               </div>
               {channels.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-3 py-2">No channels yet</p>
@@ -224,7 +229,12 @@ const Chat = () => {
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-6">
-            {messages.length === 0 ? (
+            {!selectedChannelId ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <Hash className="w-12 h-12 mb-4 opacity-50" />
+                <p>Select or create a channel to start chatting</p>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
                 <p>No messages yet</p>
@@ -269,11 +279,17 @@ const Chat = () => {
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                 className="flex-1 bg-secondary/50"
+                disabled={!selectedChannelId}
               />
               <Button variant="ghost" size="icon">
                 <Smile className="w-5 h-5" />
               </Button>
-              <Button variant="hero" size="icon" onClick={handleSendMessage} disabled={!message.trim()}>
+              <Button 
+                variant="hero" 
+                size="icon" 
+                onClick={handleSendMessage} 
+                disabled={!message.trim() || !selectedChannelId}
+              >
                 <Send className="w-5 h-5" />
               </Button>
             </div>
