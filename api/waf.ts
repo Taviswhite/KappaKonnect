@@ -89,12 +89,22 @@ export default async function handler(request: Request): Promise<Response> {
   console.log('[WAF Edge Function] ===== EXECUTING =====');
   
   const url = new URL(request.url);
-  const path = url.pathname;
+  
+  // Get the original path from x-vercel-original-path header (set by Vercel rewrite)
+  // Or use the pathname if header is not available
+  const originalPath = request.headers.get('x-vercel-original-path') || 
+                       request.headers.get('x-invoke-path') ||
+                       url.pathname.replace('/api/waf', '') || 
+                       '/';
+  
+  const path = originalPath === '' ? '/' : originalPath;
   const searchParams = url.searchParams.toString();
   const method = request.method;
   const clientIP = getClientIP(request);
 
   console.log(`[WAF Edge Function] ${method} ${path} from ${clientIP}${searchParams ? `?${searchParams.substring(0, 100)}` : ''}`);
+  console.log(`[WAF Edge Function] Original URL: ${request.url}`);
+  console.log(`[WAF Edge Function] Pathname: ${url.pathname}, Original Path: ${path}`);
 
   // 1. Block sensitive files
   if (detectThreat(path, THREAT_PATTERNS.sensitiveFiles)) {
@@ -118,29 +128,38 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   // 3. Check query parameters for threats
-  if (searchParams) {
-    let decodedParams = searchParams;
+  // Get query string from original URL (before rewrite)
+  const fullQueryString = url.search; // Includes the '?'
+  const queryStringWithoutQuestion = fullQueryString.startsWith('?') ? fullQueryString.substring(1) : fullQueryString;
+  
+  console.log(`[WAF Edge Function] Query string: ${queryStringWithoutQuestion}`);
+  
+  if (queryStringWithoutQuestion) {
+    let decodedParams = queryStringWithoutQuestion;
     try {
-      decodedParams = decodeURIComponent(searchParams);
+      decodedParams = decodeURIComponent(queryStringWithoutQuestion);
+      console.log(`[WAF Edge Function] Decoded params: ${decodedParams.substring(0, 100)}`);
     } catch {
-      decodedParams = searchParams;
+      decodedParams = queryStringWithoutQuestion;
     }
 
     const hasSQLInjection =
-      detectThreat(searchParams, THREAT_PATTERNS.sqlInjection) ||
+      detectThreat(queryStringWithoutQuestion, THREAT_PATTERNS.sqlInjection) ||
       detectThreat(decodedParams, THREAT_PATTERNS.sqlInjection);
 
     const hasXSS =
-      detectThreat(searchParams, THREAT_PATTERNS.xss) ||
+      detectThreat(queryStringWithoutQuestion, THREAT_PATTERNS.xss) ||
       detectThreat(decodedParams, THREAT_PATTERNS.xss);
 
     const hasCommandInjection =
-      detectThreat(searchParams, THREAT_PATTERNS.commandInjection) ||
+      detectThreat(queryStringWithoutQuestion, THREAT_PATTERNS.commandInjection) ||
       detectThreat(decodedParams, THREAT_PATTERNS.commandInjection);
+
+    console.log(`[WAF Edge Function] Threat check - SQL: ${hasSQLInjection}, XSS: ${hasXSS}, CMD: ${hasCommandInjection}`);
 
     if (hasSQLInjection || hasXSS || hasCommandInjection) {
       const threatType = hasSQLInjection ? 'SQL Injection' : hasXSS ? 'XSS' : 'Command Injection';
-      console.error(`[WAF Edge Function] BLOCKED - ${threatType}: ${searchParams.substring(0, 200)} from ${clientIP}`);
+      console.error(`[WAF Edge Function] BLOCKED - ${threatType}: ${queryStringWithoutQuestion.substring(0, 200)} from ${clientIP}`);
       return new Response(
         JSON.stringify({
           error: 'Forbidden',
@@ -177,16 +196,61 @@ export default async function handler(request: Request): Promise<Response> {
     }
   }
   
-  // For all other routes, serve index.html (SPA routing)
-  const origin = url.origin;
-  try {
-    const response = await fetch(`${origin}/index.html`, {
-      method: 'GET',
-      headers: request.headers,
-    });
-    return response;
-  } catch (error) {
-    console.error('[WAF Edge Function] Error serving index.html:', error);
-    return new Response('Internal Server Error', { status: 500 });
+  // For all other routes, we need to serve the actual file or index.html
+  // Since we're in a rewrite, we'll construct the proper response
+  // For SPA routes, serve index.html; for static files, serve the file
+  
+  // Check if this is a static asset that exists
+  const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json|xml|txt|webmanifest)$/i.test(path);
+  
+  if (isStaticAsset && path !== '/index.html') {
+    // Try to fetch the static file directly from the origin
+    // But we need to avoid the rewrite loop, so fetch from a different path
+    const origin = url.origin;
+    const staticPath = path.startsWith('/') ? path : `/${path}`;
+    
+    // Use a direct fetch that bypasses our rewrite
+    try {
+      // Fetch from the _next/static or public directory
+      const response = await fetch(`${origin}${staticPath}`, {
+        method: 'GET',
+        headers: {
+          ...Object.fromEntries(request.headers.entries()),
+          'x-vercel-bypass': 'true', // Try to bypass rewrite
+        },
+      });
+      
+      if (response.ok) {
+        return response;
+      }
+    } catch (e) {
+      console.log(`[WAF Edge Function] Static file not found: ${staticPath}`);
+    }
   }
+  
+  // For SPA routes, serve index.html
+  // We need to fetch it in a way that doesn't trigger our rewrite
+  const origin = url.origin;
+  
+  // Create a new request to fetch index.html directly
+  // Use a special header to indicate this is an internal fetch
+  try {
+    const indexResponse = await fetch(new Request(`${origin}/index.html`, {
+      method: 'GET',
+      headers: {
+        ...Object.fromEntries(request.headers.entries()),
+        'x-internal-fetch': 'true',
+        'x-vercel-bypass-rewrite': 'true',
+      },
+    }));
+    
+    if (indexResponse.ok) {
+      return indexResponse;
+    }
+  } catch (error) {
+    console.error('[WAF Edge Function] Error fetching index.html:', error);
+  }
+  
+  // Fallback: return a basic HTML response
+  return new Response('Not Found', { status: 404 });
 }
