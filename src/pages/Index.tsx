@@ -6,14 +6,114 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { Users, Calendar, CheckSquare, DollarSign, TrendingUp, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
-  const { profile, hasRole } = useAuth();
+  const { profile, hasRole, user } = useAuth();
   const navigate = useNavigate();
   const firstName = profile?.full_name?.split(" ")[0] || "Member";
   
   // Check if user has elevated privileges (admin, officer, or committee chair)
   const canViewSensitiveStats = hasRole("admin") || hasRole("officer") || hasRole("committee_chair");
+
+  // Fetch upcoming events count
+  const { data: upcomingEventsCount = 0 } = useQuery({
+    queryKey: ["upcoming-events-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .gte("start_time", new Date().toISOString());
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch next event title
+  const { data: nextEvent } = useQuery({
+    queryKey: ["next-event"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("title")
+        .gte("start_time", new Date().toISOString())
+        .order("start_time", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch open tasks count (tasks not completed, assigned to current user or created by them)
+  const { data: openTasksData } = useQuery({
+    queryKey: ["open-tasks-count", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { count: 0, dueTodayCount: 0 };
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, due_date, status")
+        .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`)
+        .neq("status", "completed");
+      
+      if (error) throw error;
+      
+      const openTasks = data || [];
+      const dueTodayCount = openTasks.filter(task => {
+        if (!task.due_date) return false;
+        const dueDate = new Date(task.due_date);
+        return dueDate >= today && dueDate < tomorrow;
+      }).length;
+
+      return { count: openTasks.length, dueTodayCount };
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch member count (admin/officer only)
+  const { data: memberCount = 0 } = useQuery({
+    queryKey: ["member-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: canViewSensitiveStats,
+  });
+
+  // Fetch dues collected (admin/officer only)
+  const { data: duesData } = useQuery({
+    queryKey: ["dues-collected"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("amount, status");
+      
+      if (error) throw error;
+      
+      const payments = data || [];
+      const collected = payments
+        .filter(p => p.status === "paid" || p.status === "completed")
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const total = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const percent = total > 0 ? Math.round((collected / total) * 100) : 0;
+      
+      return { collected, percent };
+    },
+    enabled: canViewSensitiveStats,
+  });
 
   return (
     <AppLayout>
@@ -33,35 +133,35 @@ const Index = () => {
           {canViewSensitiveStats && (
             <StatCard
               title="Active Members"
-              value={48}
-              change="+3 this semester"
-              changeType="positive"
+              value={memberCount}
+              change="Total registered"
+              changeType="neutral"
               icon={Users}
               iconColor="primary"
             />
           )}
           <StatCard
             title="Upcoming Events"
-            value={12}
-            change="Next: Chapter Meeting"
+            value={upcomingEventsCount}
+            change={nextEvent?.title ? `Next: ${nextEvent.title}` : "No upcoming events"}
             changeType="neutral"
             icon={Calendar}
             iconColor="accent"
           />
           <StatCard
             title="Open Tasks"
-            value={8}
-            change="2 due today"
-            changeType="negative"
+            value={openTasksData?.count || 0}
+            change={openTasksData?.dueTodayCount ? `${openTasksData.dueTodayCount} due today` : "No tasks due today"}
+            changeType={openTasksData?.dueTodayCount ? "negative" : "neutral"}
             icon={CheckSquare}
             iconColor="primary"
           />
           {canViewSensitiveStats && (
             <StatCard
               title="Dues Collected"
-              value="$12,450"
-              change="85% collected"
-              changeType="positive"
+              value={duesData?.collected ? `$${duesData.collected.toLocaleString()}` : "$0"}
+              change={duesData?.percent ? `${duesData.percent}% collected` : "No payments yet"}
+              changeType={duesData?.percent && duesData.percent > 50 ? "positive" : "neutral"}
               icon={DollarSign}
               iconColor="accent"
             />

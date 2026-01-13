@@ -18,57 +18,59 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-
-const paymentStats = [
-  { label: "Total Dues", value: "$14,400", icon: DollarSign, trend: null },
-  { label: "Collected", value: "$12,450", icon: TrendingUp, trend: "+8.2%" },
-  { label: "Pending", value: "$1,950", icon: Clock, trend: null },
-];
-
-const allMembers = [
-  { id: 1, name: "James Davis", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100", amount: 300, paid: 300, status: "paid" },
-  { id: 2, name: "Marcus Johnson", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100", amount: 300, paid: 300, status: "paid" },
-  { id: 3, name: "David Williams", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100", amount: 300, paid: 150, status: "partial" },
-  { id: 4, name: "Alex Thompson", avatar: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=100", amount: 300, paid: 0, status: "pending" },
-  { id: 5, name: "Michael Brown", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100", amount: 300, paid: 300, status: "paid" },
-  { id: 6, name: "Chris Martinez", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100", amount: 300, paid: 0, status: "overdue" },
-];
-
-const allTransactions = [
-  { id: 1, member: "James Davis", type: "Semester Dues", amount: 300, date: "Jan 5, 2026", method: "Card" },
-  { id: 2, member: "Marcus Johnson", type: "Semester Dues", amount: 300, date: "Jan 4, 2026", method: "Bank Transfer" },
-  { id: 3, member: "David Williams", type: "Partial Payment", amount: 150, date: "Jan 3, 2026", method: "Card" },
-  { id: 4, member: "Michael Brown", type: "Semester Dues", amount: 300, date: "Jan 2, 2026", method: "Card" },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 const statusConfig = {
   paid: { label: "Paid", icon: CheckCircle, className: "bg-green-500/10 text-green-400 border-green-500/20" },
+  completed: { label: "Paid", icon: CheckCircle, className: "bg-green-500/10 text-green-400 border-green-500/20" },
   partial: { label: "Partial", icon: Clock, className: "bg-accent/10 text-accent border-accent/20" },
   pending: { label: "Pending", icon: Clock, className: "bg-muted/50 text-muted-foreground border-muted" },
   overdue: { label: "Overdue", icon: AlertCircle, className: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 const Payments = () => {
-  const { profile, hasRole } = useAuth();
-  const collectedPercent = Math.round((12450 / 14400) * 100);
+  const { profile, hasRole, user } = useAuth();
   
   const canViewAllPayments = hasRole("admin") || hasRole("officer") || hasRole("committee_chair");
-  
-  const currentUserPayment = {
-    id: 0,
-    name: profile?.full_name || "You",
-    avatar: profile?.avatar_url || "",
-    amount: 300,
-    paid: 150,
-    status: "partial"
-  };
-  
-  const currentUserTransactions = [
-    { id: 1, member: profile?.full_name || "You", type: "Partial Payment", amount: 150, date: "Jan 3, 2026", method: "Card" },
-  ];
 
-  const members = canViewAllPayments ? allMembers : [currentUserPayment];
-  const transactions = canViewAllPayments ? allTransactions : currentUserTransactions;
+  // Fetch all payments (for admins) or user's payments
+  const { data: payments = [], isLoading } = useQuery({
+    queryKey: ["payments", user?.id, canViewAllPayments],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      let query = supabase.from("payments").select("*");
+      
+      if (!canViewAllPayments) {
+        query = query.eq("user_id", user.id);
+      }
+      
+      const { data, error } = await query.order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Calculate stats
+  const totalDues = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const collected = payments
+    .filter(p => p.status === "paid" || p.status === "completed")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const pending = totalDues - collected;
+  const collectedPercent = totalDues > 0 ? Math.round((collected / totalDues) * 100) : 0;
+
+  // User's payment status
+  const userPayments = payments.filter(p => p.user_id === user?.id);
+  const userTotalDue = userPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const userPaid = userPayments
+    .filter(p => p.status === "paid" || p.status === "completed")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const userStatus = userPaid === 0 ? "pending" : userPaid < userTotalDue ? "partial" : "paid";
 
   return (
     <AppLayout>
@@ -85,12 +87,12 @@ const Payments = () => {
           </div>
           <div className="flex items-center gap-3">
             {canViewAllPayments && (
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => toast.info("Export feature coming soon!")}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
             )}
-            <Button variant="hero" size="sm">
+            <Button variant="hero" size="sm" onClick={() => toast.info("Payment feature coming soon!")}>
               <CreditCard className="w-4 h-4 mr-2" />
               {canViewAllPayments ? "Record Payment" : "Pay Now"}
             </Button>
@@ -100,37 +102,56 @@ const Payments = () => {
         {/* Admin/Officer Stats */}
         {canViewAllPayments && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {paymentStats.map((stat, index) => (
-              <Card key={stat.label} className="glass-card border-0 overflow-hidden group hover:shadow-lg transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="text-2xl sm:text-3xl font-display font-bold mt-1">{stat.value}</p>
-                      {stat.trend && (
-                        <p className="text-xs text-green-400 flex items-center mt-1">
-                          <ArrowUpRight className="w-3 h-3 mr-1" />
-                          {stat.trend} from last month
-                        </p>
-                      )}
-                    </div>
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center",
-                      index === 0 && "bg-primary/20 text-primary",
-                      index === 1 && "bg-green-500/20 text-green-400",
-                      index === 2 && "bg-accent/20 text-accent"
-                    )}>
-                      <stat.icon className="w-6 h-6" />
-                    </div>
+            <Card className="glass-card border-0 overflow-hidden group hover:shadow-lg transition-shadow">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Dues</p>
+                    <p className="text-2xl sm:text-3xl font-display font-bold mt-1">${totalDues.toLocaleString()}</p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/20 text-primary">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-0 overflow-hidden group hover:shadow-lg transition-shadow">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Collected</p>
+                    <p className="text-2xl sm:text-3xl font-display font-bold mt-1">${collected.toLocaleString()}</p>
+                    {collectedPercent > 0 && (
+                      <p className="text-xs text-green-400 flex items-center mt-1">
+                        <ArrowUpRight className="w-3 h-3 mr-1" />
+                        {collectedPercent}% collected
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-green-500/20 text-green-400">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-0 overflow-hidden group hover:shadow-lg transition-shadow">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pending</p>
+                    <p className="text-2xl sm:text-3xl font-display font-bold mt-1">${pending.toLocaleString()}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-accent/20 text-accent">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {/* Collection Progress for Admin/Officers */}
-        {canViewAllPayments && (
+        {canViewAllPayments && totalDues > 0 && (
           <Card className="glass-card border-0">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -143,9 +164,9 @@ const Payments = () => {
               <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Wallet className="w-4 h-4" />
-                  $12,450 collected
+                  ${collected.toLocaleString()} collected
                 </span>
-                <span>$14,400 total</span>
+                <span>${totalDues.toLocaleString()} total</span>
               </div>
             </CardContent>
           </Card>
@@ -162,141 +183,90 @@ const Payments = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Semester Dues</span>
-                <Badge variant="outline" className={cn("text-xs", statusConfig[currentUserPayment.status as keyof typeof statusConfig].className)}>
-                  {statusConfig[currentUserPayment.status as keyof typeof statusConfig].label}
-                </Badge>
-              </div>
-              <Progress value={(currentUserPayment.paid / currentUserPayment.amount) * 100} className="h-3" />
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  <span className="text-foreground font-semibold">${currentUserPayment.paid}</span> paid
+              {userPayments.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">No payments due at this time</p>
                 </div>
-                <div className="text-sm">
-                  <span className="text-accent font-semibold">${currentUserPayment.amount - currentUserPayment.paid}</span> remaining
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Semester Dues</span>
+                    <Badge variant="outline" className={cn("text-xs", statusConfig[userStatus as keyof typeof statusConfig]?.className)}>
+                      {statusConfig[userStatus as keyof typeof statusConfig]?.label}
+                    </Badge>
+                  </div>
+                  <Progress value={(userPaid / userTotalDue) * 100} className="h-3" />
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      <span className="text-foreground font-semibold">${userPaid}</span> paid
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-accent font-semibold">${userTotalDue - userPaid}</span> remaining
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Member Status - Wider */}
-          <Card className={cn("glass-card border-0", canViewAllPayments ? "lg:col-span-3" : "lg:col-span-5")}>
+        {/* Payments List */}
+        {isLoading ? (
+          <Card className="glass-card border-0">
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-secondary/30 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : payments.length === 0 ? (
+          <Card className="glass-card border-0">
+            <CardContent className="p-12 text-center">
+              <Receipt className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-display font-bold text-foreground mb-2">No payments yet</h3>
+              <p className="text-muted-foreground">Payment records will appear here</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="glass-card border-0">
             <CardHeader>
               <CardTitle className="text-lg font-display flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-primary" />
-                {canViewAllPayments ? "Member Status" : "Payment Details"}
+                {canViewAllPayments ? "Recent Payments" : "Your Payments"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {members.map((member) => {
-                  const status = statusConfig[member.status as keyof typeof statusConfig];
-                  const progress = (member.paid / member.amount) * 100;
+                {payments.slice(0, 10).map((payment) => {
+                  const status = statusConfig[payment.status as keyof typeof statusConfig] || statusConfig.pending;
                   return (
                     <div 
-                      key={member.id} 
-                      className="flex items-center gap-4 p-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors"
+                      key={payment.id} 
+                      className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors"
                     >
-                      <Avatar className="w-10 h-10 border-2 border-border">
-                        <AvatarImage src={member.avatar} />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                          {member.name.split(" ").map((n) => n[0]).join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-medium text-foreground truncate">{member.name}</p>
-                          <Badge variant="outline" className={cn("text-xs shrink-0 ml-2", status.className)}>
-                            <status.icon className="w-3 h-3 mr-1" />
-                            {status.label}
-                          </Badge>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                          <DollarSign className="w-5 h-5 text-green-400" />
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Progress value={progress} className="h-2 flex-1" />
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            ${member.paid}/${member.amount}
-                          </span>
+                        <div>
+                          <p className="font-medium text-foreground">{payment.payment_type}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {payment.payment_date ? format(new Date(payment.payment_date), "MMM d, yyyy") : "Pending"}
+                          </p>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline" className={cn("text-xs", status.className)}>
+                          <status.icon className="w-3 h-3 mr-1" />
+                          {status.label}
+                        </Badge>
+                        <p className="font-semibold text-foreground">${Number(payment.amount).toLocaleString()}</p>
                       </div>
                     </div>
                   );
                 })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Transactions - Narrower for admin, full width for members */}
-          {canViewAllPayments && (
-            <Card className="glass-card border-0 lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg font-display flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-green-400" />
-                  Recent Transactions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {transactions.map((tx) => (
-                    <div 
-                      key={tx.id} 
-                      className="flex items-center justify-between p-3 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
-                          <DollarSign className="w-5 h-5 text-green-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm text-foreground truncate">{tx.member}</p>
-                          <p className="text-xs text-muted-foreground">{tx.type}</p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold text-green-400">+${tx.amount}</p>
-                        <p className="text-xs text-muted-foreground">{tx.date}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Transactions for Regular Members */}
-        {!canViewAllPayments && transactions.length > 0 && (
-          <Card className="glass-card border-0">
-            <CardHeader>
-              <CardTitle className="text-lg font-display flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-                Your Transactions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {transactions.map((tx) => (
-                  <div 
-                    key={tx.id} 
-                    className="flex items-center justify-between p-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-green-400" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{tx.type}</p>
-                        <p className="text-sm text-muted-foreground">{tx.method}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-400">+${tx.amount}</p>
-                      <p className="text-sm text-muted-foreground">{tx.date}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
