@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      alumni: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          current_company: string | null
+          current_position: string | null
+          degree: string | null
+          email: string | null
+          full_name: string
+          graduation_year: number
+          id: string
+          industry: string | null
+          linkedin_url: string | null
+          location: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          current_company?: string | null
+          current_position?: string | null
+          degree?: string | null
+          email?: string | null
+          full_name: string
+          graduation_year: number
+          id?: string
+          industry?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          current_company?: string | null
+          current_position?: string | null
+          degree?: string | null
+          email?: string | null
+          full_name?: string
+          graduation_year?: number
+          id?: string
+          industry?: string | null
+          linkedin_url?: string | null
+          location?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           checked_in_at: string
@@ -39,6 +90,163 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_private: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
+      document_folders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      document_signatures: {
+        Row: {
+          document_id: string
+          id: string
+          signed_at: string
+          user_id: string
+        }
+        Insert: {
+          document_id: string
+          id?: string
+          signed_at?: string
+          user_id: string
+        }
+        Update: {
+          document_id?: string
+          id?: string
+          signed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_size: string | null
+          file_type: string
+          file_url: string | null
+          folder_id: string | null
+          id: string
+          name: string
+          requires_signature: boolean | null
+          total_signers: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_size?: string | null
+          file_type?: string
+          file_url?: string | null
+          folder_id?: string | null
+          id?: string
+          name: string
+          requires_signature?: boolean | null
+          total_signers?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_size?: string | null
+          file_type?: string
+          file_url?: string | null
+          folder_id?: string | null
+          id?: string
+          name?: string
+          requires_signature?: boolean | null
+          total_signers?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
             referencedColumns: ["id"]
           },
         ]
@@ -81,6 +289,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          channel_id: string | null
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
