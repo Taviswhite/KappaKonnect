@@ -5,39 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const events = [
-  {
-    id: 1,
-    title: "Chapter Meeting",
-    date: "2026-01-15",
-    time: "7:00 PM",
-    location: "Chapter House",
-    attendees: 42,
-    type: "meeting",
-    description: "Weekly chapter meeting to discuss upcoming events and initiatives.",
-  },
-  {
-    id: 2,
-    title: "Community Service Day",
-    date: "2026-01-18",
-    time: "9:00 AM",
-    location: "City Park",
-    attendees: 28,
-    type: "service",
-    description: "Park cleanup and beautification project.",
-  },
-  {
-    id: 3,
-    title: "Alumni Networking Event",
-    date: "2026-01-22",
-    time: "6:00 PM",
-    location: "Downtown Hotel",
-    attendees: 65,
-    type: "social",
-    description: "Connect with alumni for career advice and mentorship opportunities.",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, parseISO, isSameDay } from "date-fns";
 
 const typeColors = {
   meeting: "bg-primary/20 text-primary border-primary/30",
@@ -53,8 +23,22 @@ const months = [
 ];
 
 const Events = () => {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 0, 1));
-  const [selectedDate, setSelectedDate] = useState<string | null>("2026-01-15");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+
+  // Fetch events from database
+  const { data: events = [], isLoading } = useQuery({
+    queryKey: ["all-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .order("start_time", { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -84,18 +68,18 @@ const Events = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  const getDateString = (day: number) => {
-    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-    const dayStr = String(day).padStart(2, "0");
-    return `${currentDate.getFullYear()}-${month}-${dayStr}`;
+  const getDateFromDay = (day: number) => {
+    return new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
   };
 
   const hasEvent = (day: number) => {
-    const dateStr = getDateString(day);
-    return events.some((e) => e.date === dateStr);
+    const date = getDateFromDay(day);
+    return events.some((e) => isSameDay(parseISO(e.start_time), date));
   };
 
-  const selectedEvents = events.filter((e) => e.date === selectedDate);
+  const selectedEvents = selectedDate 
+    ? events.filter((e) => isSameDay(parseISO(e.start_time), selectedDate))
+    : [];
 
   return (
     <AppLayout>
@@ -143,28 +127,31 @@ const Events = () => {
                   {day}
                 </div>
               ))}
-              {getDaysInMonth(currentDate).map((day, index) => (
-                <button
-                  key={index}
-                  onClick={() => day && setSelectedDate(getDateString(day))}
-                  disabled={!day}
-                  className={cn(
-                    "aspect-square rounded-lg flex flex-col items-center justify-center text-sm transition-all relative",
-                    !day && "invisible",
-                    day && selectedDate === getDateString(day)
-                      ? "bg-primary text-primary-foreground glow-primary"
-                      : day
-                      ? "hover:bg-secondary"
-                      : "",
-                    hasEvent(day || 0) && selectedDate !== getDateString(day || 0) && "bg-primary/10"
-                  )}
-                >
-                  {day}
-                  {hasEvent(day || 0) && (
-                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-primary" />
-                  )}
-                </button>
-              ))}
+              {getDaysInMonth(currentDate).map((day, index) => {
+                const isSelected = day && selectedDate && isSameDay(getDateFromDay(day), selectedDate);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => day && setSelectedDate(getDateFromDay(day))}
+                    disabled={!day}
+                    className={cn(
+                      "aspect-square rounded-lg flex flex-col items-center justify-center text-sm transition-all relative",
+                      !day && "invisible",
+                      isSelected
+                        ? "bg-primary text-primary-foreground glow-primary"
+                        : day
+                        ? "hover:bg-secondary"
+                        : "",
+                      day && hasEvent(day) && !isSelected && "bg-primary/10"
+                    )}
+                  >
+                    {day}
+                    {day && hasEvent(day) && (
+                      <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -172,54 +159,59 @@ const Events = () => {
           <div className="glass-card rounded-xl p-6">
             <h3 className="text-lg font-display font-bold mb-4">
               {selectedDate
-                ? new Date(selectedDate).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })
+                ? format(selectedDate, "EEEE, MMMM d")
                 : "Select a date"}
             </h3>
 
-            {selectedEvents.length > 0 ? (
+            {isLoading ? (
               <div className="space-y-4">
-                {selectedEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge
-                        variant="outline"
-                        className={cn("text-xs capitalize", typeColors[event.type as keyof typeof typeColors])}
-                      >
-                        {event.type}
-                      </Badge>
-                    </div>
-                    <h4 className="font-semibold text-foreground">{event.title}</h4>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {event.description}
-                    </p>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {event.time}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {event.location}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="w-3 h-3" />
-                        {event.attendees} attending
-                      </span>
-                      <Button size="sm" variant="hero" onClick={() => toast.success("RSVP confirmed!")}>
-                        RSVP
-                      </Button>
-                    </div>
-                  </div>
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-32 bg-secondary/30 rounded-lg animate-pulse" />
                 ))}
+              </div>
+            ) : selectedEvents.length > 0 ? (
+              <div className="space-y-4">
+                {selectedEvents.map((event) => {
+                  const eventType = event.event_type || "meeting";
+                  return (
+                    <div
+                      key={event.id}
+                      className="p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge
+                          variant="outline"
+                          className={cn("text-xs capitalize", typeColors[eventType as keyof typeof typeColors] || typeColors.meeting)}
+                        >
+                          {eventType}
+                        </Badge>
+                      </div>
+                      <h4 className="font-semibold text-foreground">{event.title}</h4>
+                      {event.description && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {event.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {format(parseISO(event.start_time), "h:mm a")}
+                        </span>
+                        {event.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {event.location}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-end mt-4">
+                        <Button size="sm" variant="hero" onClick={() => toast.success("RSVP confirmed!")}>
+                          RSVP
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
