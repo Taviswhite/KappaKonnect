@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Events from "./pages/Events";
@@ -21,36 +22,50 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Create QueryClient with proper configuration outside component to avoid recreation
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-            <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
-            <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-            <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
-            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-            <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
-            <Route path="/alumni" element={<ProtectedRoute><Alumni /></ProtectedRoute>} />
-            <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+              <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
+              <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+              <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+              <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
+              <Route path="/alumni" element={<ProtectedRoute><Alumni /></ProtectedRoute>} />
+              <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
