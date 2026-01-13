@@ -136,8 +136,12 @@ function getClientIP(request: EdgeRequest): string {
 
 /**
  * Main WAF middleware function
+ * This MUST be the default export for Vercel Edge Middleware
  */
 export default function middleware(request: EdgeRequest): EdgeResponse | undefined {
+  // CRITICAL: Log at the very start to verify middleware is executing
+  console.log('[WAF] ===== MIDDLEWARE EXECUTING =====');
+  
   const url = new URL(request.url);
   const path = url.pathname;
   const searchParams = url.searchParams.toString();
@@ -191,17 +195,31 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
   // 4. Check query parameters for threats
   if (searchParams) {
     // Decode URL-encoded parameters for better detection
-    const decodedParams = decodeURIComponent(searchParams);
+    let decodedParams = searchParams;
+    try {
+      decodedParams = decodeURIComponent(searchParams);
+    } catch (e) {
+      // If decoding fails, use original
+      decodedParams = searchParams;
+    }
     
-    if (
+    // Check both encoded and decoded versions
+    const hasSQLInjection = 
       detectThreat(searchParams, THREAT_PATTERNS.sqlInjection) ||
-      detectThreat(decodedParams, THREAT_PATTERNS.sqlInjection) ||
+      detectThreat(decodedParams, THREAT_PATTERNS.sqlInjection);
+    
+    const hasXSS = 
       detectThreat(searchParams, THREAT_PATTERNS.xss) ||
-      detectThreat(decodedParams, THREAT_PATTERNS.xss) ||
+      detectThreat(decodedParams, THREAT_PATTERNS.xss);
+    
+    const hasCommandInjection = 
       detectThreat(searchParams, THREAT_PATTERNS.commandInjection) ||
-      detectThreat(decodedParams, THREAT_PATTERNS.commandInjection)
-    ) {
-      console.error(`[WAF] BLOCKED - Malicious query: ${searchParams.substring(0, 200)} from ${clientIP}`);
+      detectThreat(decodedParams, THREAT_PATTERNS.commandInjection);
+    
+    if (hasSQLInjection || hasXSS || hasCommandInjection) {
+      const threatType = hasSQLInjection ? 'SQL Injection' : hasXSS ? 'XSS' : 'Command Injection';
+      console.error(`[WAF] BLOCKED - ${threatType} detected: ${searchParams.substring(0, 200)} from ${clientIP}`);
+      console.error(`[WAF] Decoded params: ${decodedParams.substring(0, 200)}`);
       return new Response(
         JSON.stringify({
           error: 'Forbidden',
@@ -215,10 +233,13 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
     }
   }
 
-  // Request passed all checks - continue (return undefined to allow request through)
-  // Note: We can't modify headers in Edge Middleware for Vite projects the same way
-  // Security headers are already set in vercel.json
+  // Request passed all checks - continue
+  // Add a header to verify middleware is running (for testing)
   console.log(`[WAF] ALLOWED - ${method} ${path} from ${clientIP}`);
+  
+  // For Vercel Edge Middleware, we need to return a Response with headers
+  // But we can't modify the original response, so we'll let it through
+  // The header modification would need to be done differently
   return undefined;
 }
 
@@ -229,13 +250,9 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - Static files (images, fonts, etc.)
-     * - API routes (if you have any)
-     * - Favicon
+     * Match all request paths except static files
+     * Simplified matcher to ensure middleware runs on all routes
      */
-    '/((?!.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot|json|xml|txt)).*)',
-    // Also match query parameters for threat detection
-    '/(.*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)).*)',
   ],
 };
