@@ -178,3 +178,4 @@ This project is private and proprietary.
 ---
 
 **Note**: Make sure to configure Row Level Security (RLS) policies in Supabase for proper data access control.
+
