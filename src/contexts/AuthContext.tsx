@@ -124,14 +124,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Signs in an existing user with email and password
-   * @param email - User's email address
+   * Signs in an existing user with email, username, or phone number and password
+   * @param identifier - User's email address, username (full_name), or phone number
    * @param password - User's password
    * @returns Object with error if signin fails
    */
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (identifier: string, password: string) => {
+    let emailToUse = identifier.trim();
+    
+    // Check if identifier is an email (contains @)
+    const isEmail = identifier.includes('@');
+    
+    // Check if identifier is a phone number (contains mostly digits, may have +, -, spaces, parentheses)
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const isPhone = phoneRegex.test(identifier.replace(/\s/g, '')) && identifier.replace(/\D/g, '').length >= 10;
+    
+    // If not an email, try to look up the email from profiles
+    if (!isEmail) {
+      try {
+        let profileQuery = supabase
+          .from('profiles')
+          .select('email')
+          .limit(1);
+        
+        if (isPhone) {
+          // Look up by phone number - try both with and without formatting
+          const cleanPhone = identifier.replace(/\D/g, ''); // Remove non-digits
+          const { data: profileData, error: lookupError } = await supabase
+            .from('profiles')
+            .select('email')
+            .or(`phone.ilike.%${cleanPhone}%,phone.ilike.%${identifier}%`)
+            .maybeSingle();
+          
+          if (lookupError) {
+            console.error('Error looking up user by phone:', lookupError);
+            return { 
+              error: new Error('Unable to find user. Please check your credentials.') as Error 
+            };
+          } else if (profileData?.email) {
+            emailToUse = profileData.email;
+          } else {
+            // If no profile found, return error
+            return { 
+              error: new Error('Invalid login credentials. Please check your email, username, or phone number.') as Error 
+            };
+          }
+        } else {
+          // Look up by full_name (username) - case insensitive
+          const { data: profileData, error: lookupError } = await profileQuery
+            .ilike('full_name', identifier)
+            .maybeSingle();
+          
+          if (lookupError) {
+            console.error('Error looking up user by name:', lookupError);
+            return { 
+              error: new Error('Unable to find user. Please check your credentials.') as Error 
+            };
+          } else if (profileData?.email) {
+            emailToUse = profileData.email;
+          } else {
+            // If no profile found, return error
+            return { 
+              error: new Error('Invalid login credentials. Please check your email, username, or phone number.') as Error 
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error during user lookup:', error);
+        return { 
+          error: new Error('Unable to find user. Please check your credentials.') as Error 
+        };
+      }
+    }
+    
+    // Sign in with the resolved email
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: emailToUse,
       password,
     });
     

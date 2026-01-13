@@ -10,7 +10,7 @@ import logo from "@/assets/logo.jpeg";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().trim().email("Invalid email address"),
+  email: z.string().trim().min(1, "Email, username, or phone number is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -76,8 +76,8 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password. Please try again.");
+          if (error.message.includes("Invalid login credentials") || error.message.includes("Unable to find user")) {
+            toast.error("Invalid credentials. Please check your email, username, phone number, or password.");
           } else if (error.message.includes("Email not confirmed") || error.message.includes("email_not_confirmed")) {
             setNeedsConfirmation(true);
             toast.error("Please confirm your email before signing in. Check your inbox for the confirmation link.");
@@ -152,13 +152,13 @@ const Auth = () => {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email, Username, or Phone</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="brother@university.edu"
+                  type="text"
+                  placeholder="email, username, or phone number"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
