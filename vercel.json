@@ -1,13 +1,8 @@
 {
-  "functions": {
-    "api/waf.ts": {
-      "runtime": "edge"
-    }
-  },
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/api/waf"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

@@ -20,6 +20,7 @@ import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Blocked from "./pages/Blocked";
 
 /**
  * Application routes
@@ -28,6 +29,7 @@ import NotFound from "./pages/NotFound";
 export const appRoutes = (
   <>
     <Route path="/auth" element={<Auth />} />
+    <Route path="/blocked" element={<Blocked />} />
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
     <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
