@@ -19,7 +19,7 @@
         },
         {
           "key": "Strict-Transport-Security",
-          "value": "max-age=31536000"
+          "value": "max-age=31536000; includeSubDomains; preload"
         },
         {
           "key": "X-XSS-Protection",
@@ -38,24 +38,38 @@
           "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'self';"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/.env",
+      "destination": "/404",
+      "permanent": false
     },
     {
-      "source": "/\\.env",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate"
-        }
-      ]
+      "source": "/.env.local",
+      "destination": "/404",
+      "permanent": false
     },
     {
-      "source": "/\\.git/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate"
-        }
-      ]
+      "source": "/.git/:path*",
+      "destination": "/404",
+      "permanent": false
+    },
+    {
+      "source": "/config.json",
+      "destination": "/404",
+      "permanent": false
+    },
+    {
+      "source": "/package.json",
+      "destination": "/404",
+      "permanent": false
+    },
+    {
+      "source": "/api/debug",
+      "destination": "/404",
+      "permanent": false
     }
   ]
 }
