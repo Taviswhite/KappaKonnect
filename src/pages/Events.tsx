@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const events = [
   {
@@ -105,11 +106,11 @@ const Events = () => {
             <p className="text-muted-foreground mt-1">Manage and track chapter events</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => toast.info("Filter options coming soon!")}>
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            <Button variant="hero" size="sm">
+            <Button variant="hero" size="sm" onClick={() => toast.info("Create event feature coming soon!")}>
               <Plus className="w-4 h-4 mr-2" />
               Create Event
             </Button>
@@ -213,7 +214,7 @@ const Events = () => {
                         <Users className="w-3 h-3" />
                         {event.attendees} attending
                       </span>
-                      <Button size="sm" variant="hero">
+                      <Button size="sm" variant="hero" onClick={() => toast.success("RSVP confirmed!")}>
                         RSVP
                       </Button>
                     </div>

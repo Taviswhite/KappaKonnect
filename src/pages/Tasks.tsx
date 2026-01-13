@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Circle, Clock, Plus, Filter, Search, MoreVertical, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const columns = [
   { id: "todo", title: "To Do", color: "border-muted" },
@@ -96,7 +97,7 @@ const Tasks = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Tasks</h1>
             <p className="text-muted-foreground mt-1">Manage committee assignments and track progress</p>
           </div>
-          <Button variant="hero" size="sm">
+          <Button variant="hero" size="sm" onClick={() => toast.info("Create task feature coming soon!")}>
             <Plus className="w-4 h-4 mr-2" />
             New Task
           </Button>
@@ -113,7 +114,7 @@ const Tasks = () => {
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.info("Filter options coming soon!")}>
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
@@ -176,7 +177,10 @@ const Tasks = () => {
                 ))}
 
                 {/* Add Task Button */}
-                <button className="w-full p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => toast.info("Add task feature coming soon!")}
+                  className="w-full p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary flex items-center justify-center gap-2"
+                >
                   <Plus className="w-4 h-4" />
                   Add Task
                 </button>

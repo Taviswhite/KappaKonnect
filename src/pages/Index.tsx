@@ -5,9 +5,11 @@ import { TaskList } from "@/components/dashboard/TaskList";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { Users, Calendar, CheckSquare, DollarSign, TrendingUp, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { profile, hasRole } = useAuth();
+  const navigate = useNavigate();
   const firstName = profile?.full_name?.split(" ")[0] || "Member";
   
   // Check if user has elevated privileges (admin, officer, or committee chair)
@@ -87,22 +89,34 @@ const Index = () => {
           <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
             <h2 className="text-lg sm:text-xl font-display font-bold text-foreground mb-4 sm:mb-6">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-2 sm:gap-4">
-              <button className="p-3 sm:p-4 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all group">
+              <button 
+                onClick={() => navigate("/events")}
+                className="p-3 sm:p-4 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all group"
+              >
                 <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Create Event</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Schedule a new event</p>
               </button>
-              <button className="p-3 sm:p-4 rounded-lg bg-accent/10 hover:bg-accent/20 border border-accent/20 transition-all group">
+              <button 
+                onClick={() => navigate("/tasks")}
+                className="p-3 sm:p-4 rounded-lg bg-accent/10 hover:bg-accent/20 border border-accent/20 transition-all group"
+              >
                 <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 text-accent mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Add Task</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Assign a new task</p>
               </button>
-              <button className="p-3 sm:p-4 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 transition-all group">
+              <button 
+                onClick={() => navigate("/attendance")}
+                className="p-3 sm:p-4 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 transition-all group"
+              >
                 <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Check In</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">QR attendance</p>
               </button>
-              <button className="p-3 sm:p-4 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all group">
+              <button 
+                onClick={() => navigate("/payments")}
+                className="p-3 sm:p-4 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all group"
+              >
                 <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">View Reports</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Analytics dashboard</p>
