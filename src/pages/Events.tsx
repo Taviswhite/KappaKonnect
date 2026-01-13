@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, isSameDay } from "date-fns";
+import { CreateEventDialog } from "@/components/dialogs/CreateEventDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const typeColors = {
   meeting: "bg-primary/20 text-primary border-primary/30",
@@ -25,6 +27,8 @@ const months = [
 const Events = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch events from database
   const { data: events = [], isLoading } = useQuery({
@@ -94,10 +98,12 @@ const Events = () => {
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            <Button variant="hero" size="sm" onClick={() => toast.info("Create event feature coming soon!")}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Event
-            </Button>
+            <CreateEventDialog>
+              <Button variant="hero" size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Event
+              </Button>
+            </CreateEventDialog>
           </div>
         </div>
 
@@ -205,9 +211,7 @@ const Events = () => {
                         )}
                       </div>
                       <div className="flex items-center justify-end mt-4">
-                        <Button size="sm" variant="hero" onClick={() => toast.success("RSVP confirmed!")}>
-                          RSVP
-                        </Button>
+                        <RSVPButton eventId={event.id} />
                       </div>
                     </div>
                   );
@@ -225,5 +229,61 @@ const Events = () => {
     </AppLayout>
   );
 };
+
+// RSVP Button Component
+function RSVPButton({ eventId }: { eventId: string }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: rsvp } = useQuery({
+    queryKey: ["rsvp", eventId, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from("rsvps")
+        .select("status")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const rsvpMutation = useMutation({
+    mutationFn: async (status: "going" | "maybe" | "not_going") => {
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("rsvps").upsert({
+        user_id: user.id,
+        event_id: eventId,
+        status,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rsvp", eventId] });
+      toast.success("RSVP updated!");
+    },
+    onError: () => {
+      toast.error("Failed to update RSVP");
+    },
+  });
+
+  if (!user) return null;
+
+  if (rsvp) {
+    return (
+      <Button size="sm" variant="outline" onClick={() => rsvpMutation.mutate("going")}>
+        {rsvp.status === "going" ? "✓ Going" : "RSVP"}
+      </Button>
+    );
+  }
+
+  return (
+    <Button size="sm" variant="hero" onClick={() => rsvpMutation.mutate("going")}>
+      RSVP
+    </Button>
+  );
+}
 
 export default Events;

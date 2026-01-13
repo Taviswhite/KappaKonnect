@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { PaymentDialog } from "@/components/dialogs/PaymentDialog";
 
 const statusConfig = {
   paid: { label: "Paid", icon: CheckCircle, className: "bg-green-500/10 text-green-400 border-green-500/20" },
@@ -34,7 +35,7 @@ const statusConfig = {
 const Payments = () => {
   const { profile, hasRole, user } = useAuth();
   
-  const canViewAllPayments = hasRole("admin") || hasRole("officer") || hasRole("committee_chair");
+  const canViewAllPayments = hasRole("admin") || hasRole("officer") || hasRole("committee_chairman");
 
   // Fetch all payments (for admins) or user's payments
   const { data: payments = [], isLoading } = useQuery({
@@ -92,10 +93,12 @@ const Payments = () => {
                 Export
               </Button>
             )}
-            <Button variant="hero" size="sm" onClick={() => toast.info("Payment feature coming soon!")}>
-              <CreditCard className="w-4 h-4 mr-2" />
-              {canViewAllPayments ? "Record Payment" : "Pay Now"}
-            </Button>
+            <PaymentDialog paymentType="Semester Dues">
+              <Button variant="hero" size="sm">
+                <CreditCard className="w-4 h-4 mr-2" />
+                {canViewAllPayments ? "Record Payment" : "Pay Now"}
+              </Button>
+            </PaymentDialog>
           </div>
         </div>
 

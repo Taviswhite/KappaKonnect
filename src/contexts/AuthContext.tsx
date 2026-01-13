@@ -15,7 +15,7 @@ interface Profile {
 }
 
 interface UserRole {
-  role: "admin" | "officer" | "committee_chair" | "member" | "advisor";
+  role: "admin" | "officer" | "committee_chairman" | "member" | "alumni";
 }
 
 interface AuthContextType {
@@ -28,6 +28,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   hasRole: (role: UserRole["role"]) => boolean;
+  resendConfirmationEmail: (email: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,11 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer Supabase calls with setTimeout
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+          fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setRoles([]);
@@ -69,8 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Fetches user profile and roles from Supabase
+   * @param userId - The authenticated user's ID
+   */
   const fetchUserData = async (userId: string) => {
     try {
       // Fetch profile
@@ -96,6 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /**
+   * Signs up a new user with email and password
+   * @param email - User's email address
+   * @param password - User's password
+   * @param fullName - User's full name
+   * @returns Object with error if signup fails
+   */
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -113,10 +123,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  /**
+   * Signs in an existing user with email and password
+   * @param email - User's email address
+   * @param password - User's password
+   * @returns Object with error if signin fails
+   */
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
+    });
+    
+    return { error: error as Error | null };
+  };
+
+  /**
+   * Resends email confirmation for a user
+   * @param email - User's email address
+   * @returns Object with error if resend fails
+   */
+  const resendConfirmationEmail = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
     
     return { error: error as Error | null };
@@ -128,6 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
   };
 
+  /**
+   * Checks if the current user has a specific role
+   * @param role - The role to check for
+   * @returns True if user has the role, false otherwise
+   */
   const hasRole = (role: UserRole["role"]) => {
     return roles.some((r) => r.role === role);
   };
@@ -144,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         hasRole,
+        resendConfirmationEmail,
       }}
     >
       {children}

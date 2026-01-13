@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
@@ -8,17 +9,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { showErrorToast } from "@/lib/error-handler";
 
 const Index = () => {
   const { profile, hasRole, user } = useAuth();
   const navigate = useNavigate();
-  const firstName = profile?.full_name?.split(" ")[0] || "Member";
+  
+  // Memoize firstName computation
+  const firstName = useMemo(() => {
+    return profile?.full_name?.split(" ")[0] || "Member";
+  }, [profile?.full_name]);
   
   // Check if user has elevated privileges (admin, officer, or committee chair)
-  const canViewSensitiveStats = hasRole("admin") || hasRole("officer") || hasRole("committee_chair");
+  const canViewSensitiveStats = hasRole("admin") || hasRole("officer") || hasRole("committee_chairman");
 
   // Fetch upcoming events count
-  const { data: upcomingEventsCount = 0 } = useQuery({
+  const { data: upcomingEventsCount = 0, isLoading: isLoadingEvents, error: eventsError } = useQuery({
     queryKey: ["upcoming-events-count"],
     queryFn: async () => {
       const { count, error } = await supabase
@@ -31,8 +37,13 @@ const Index = () => {
     },
   });
 
+  // Handle errors
+  if (eventsError) {
+    showErrorToast(eventsError, "Failed to load events");
+  }
+
   // Fetch next event title
-  const { data: nextEvent } = useQuery({
+  const { data: nextEvent, error: nextEventError } = useQuery({
     queryKey: ["next-event"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,8 +59,12 @@ const Index = () => {
     },
   });
 
+  if (nextEventError) {
+    showErrorToast(nextEventError, "Failed to load next event");
+  }
+
   // Fetch open tasks count (tasks not completed, assigned to current user or created by them)
-  const { data: openTasksData } = useQuery({
+  const { data: openTasksData, error: tasksError } = useQuery({
     queryKey: ["open-tasks-count", user?.id],
     queryFn: async () => {
       if (!user?.id) return { count: 0, dueTodayCount: 0 };
@@ -59,6 +74,7 @@ const Index = () => {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      // Use safer query builder method instead of template string
       const { data, error } = await supabase
         .from("tasks")
         .select("id, due_date, status")
@@ -79,8 +95,12 @@ const Index = () => {
     enabled: !!user?.id,
   });
 
+  if (tasksError) {
+    showErrorToast(tasksError, "Failed to load tasks");
+  }
+
   // Fetch member count (admin/officer only)
-  const { data: memberCount = 0 } = useQuery({
+  const { data: memberCount = 0, error: memberCountError } = useQuery({
     queryKey: ["member-count"],
     queryFn: async () => {
       const { count, error } = await supabase
@@ -93,8 +113,12 @@ const Index = () => {
     enabled: canViewSensitiveStats,
   });
 
+  if (memberCountError) {
+    showErrorToast(memberCountError, "Failed to load member count");
+  }
+
   // Fetch dues collected (admin/officer only)
-  const { data: duesData } = useQuery({
+  const { data: duesData, error: duesError } = useQuery({
     queryKey: ["dues-collected"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -114,6 +138,10 @@ const Index = () => {
     },
     enabled: canViewSensitiveStats,
   });
+
+  if (duesError) {
+    showErrorToast(duesError, "Failed to load payment data");
+  }
 
   return (
     <AppLayout>
@@ -192,6 +220,7 @@ const Index = () => {
               <button 
                 onClick={() => navigate("/events")}
                 className="p-3 sm:p-4 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all group"
+                aria-label="Create new event"
               >
                 <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-primary mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Create Event</p>
@@ -200,6 +229,7 @@ const Index = () => {
               <button 
                 onClick={() => navigate("/tasks")}
                 className="p-3 sm:p-4 rounded-lg bg-accent/10 hover:bg-accent/20 border border-accent/20 transition-all group"
+                aria-label="Add new task"
               >
                 <CheckSquare className="w-6 h-6 sm:w-8 sm:h-8 text-accent mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Add Task</p>
@@ -208,6 +238,7 @@ const Index = () => {
               <button 
                 onClick={() => navigate("/attendance")}
                 className="p-3 sm:p-4 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 transition-all group"
+                aria-label="Check in for attendance"
               >
                 <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Check In</p>
@@ -216,6 +247,7 @@ const Index = () => {
               <button 
                 onClick={() => navigate("/payments")}
                 className="p-3 sm:p-4 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all group"
+                aria-label="View payment reports"
               >
                 <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">View Reports</p>

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import { z } from "zod";
@@ -26,10 +26,10 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, resendConfirmationEmail } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -37,6 +37,11 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  /**
+   * Validates the form using Zod schemas
+   * Sets error messages for invalid fields
+   * @returns True if validation passes, false otherwise
+   */
   const validateForm = () => {
     setErrors({});
     try {
@@ -72,55 +77,32 @@ const Auth = () => {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
-            toast({
-              title: "Login Failed",
-              description: "Invalid email or password. Please try again.",
-              variant: "destructive",
-            });
+            toast.error("Invalid email or password. Please try again.");
+          } else if (error.message.includes("Email not confirmed") || error.message.includes("email_not_confirmed")) {
+            setNeedsConfirmation(true);
+            toast.error("Please confirm your email before signing in. Check your inbox for the confirmation link.");
           } else {
-            toast({
-              title: "Error",
-              description: error.message,
-              variant: "destructive",
-            });
+            toast.error(error.message);
           }
         } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully logged in.",
-          });
+          toast.success("Welcome back! You have successfully logged in.");
           navigate("/");
         }
       } else {
         const { error } = await signUp(email, password, fullName);
         if (error) {
           if (error.message.includes("already registered")) {
-            toast({
-              title: "Account Exists",
-              description: "An account with this email already exists. Try logging in instead.",
-              variant: "destructive",
-            });
+            toast.error("An account with this email already exists. Try logging in instead.");
           } else {
-            toast({
-              title: "Error",
-              description: error.message,
-              variant: "destructive",
-            });
+            toast.error(error.message);
           }
         } else {
-          toast({
-            title: "Account Created!",
-            description: "Welcome to KappaConnect. You're now logged in.",
-          });
-          navigate("/");
+          toast.success("Account created! Please check your email to confirm your account.");
+          setNeedsConfirmation(true);
         }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +117,8 @@ const Auth = () => {
             src={logo} 
             alt="KappaConnect Logo" 
             className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl object-cover shadow-lg mb-4"
+            loading="lazy"
+            decoding="async"
           />
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">KappaConnect</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">Fraternity Management Portal</p>
@@ -221,6 +205,40 @@ const Auth = () => {
             </Button>
           </form>
 
+          {needsConfirmation && (
+            <div className="mt-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-2">
+                <strong>Email confirmation required</strong>
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Please check your email and click the confirmation link. If you didn't receive it, you can resend it.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={async () => {
+                  if (!email) {
+                    toast.error("Please enter your email address first.");
+                    return;
+                  }
+                  setIsLoading(true);
+                  const { error } = await resendConfirmationEmail(email);
+                  if (error) {
+                    toast.error(error.message);
+                  } else {
+                    toast.success("Confirmation email sent! Please check your inbox.");
+                  }
+                  setIsLoading(false);
+                }}
+                disabled={isLoading || !email}
+              >
+                Resend Confirmation Email
+              </Button>
+            </div>
+          )}
+
           <div className="mt-6 text-center">
             <p className="text-muted-foreground">
               {isLogin ? "Don't have an account?" : "Already a member?"}
@@ -229,6 +247,7 @@ const Auth = () => {
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setErrors({});
+                  setNeedsConfirmation(false);
                 }}
                 className="ml-1 text-primary hover:underline font-medium"
               >

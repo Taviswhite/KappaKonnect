@@ -4,23 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users } from "lucide-react";
+import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
   officer: "bg-primary/20 text-primary border-primary/30",
-  committee_chair: "bg-accent/20 text-accent border-accent/30",
+  committee_chairman: "bg-accent/20 text-accent border-accent/30",
   member: "bg-secondary text-secondary-foreground border-secondary",
-  advisor: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  alumni: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
 const Members = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
+  const { hasRole } = useAuth();
+
+  // Only admins can edit roles
+  const canEditRoles = hasRole("admin");
 
   // Fetch profiles from database
   const { data: profiles = [], isLoading } = useQuery({
@@ -71,10 +77,6 @@ const Members = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Members</h1>
             <p className="text-muted-foreground mt-1">Directory of all chapter members</p>
           </div>
-          <Button variant="hero" size="sm" onClick={() => toast.info("Add member feature coming soon!")}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add Member
-          </Button>
         </div>
 
         {/* Search and Filters */}
@@ -153,7 +155,7 @@ const Members = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMembers.map((member, index) => {
               const role = getRoleForUser(member.user_id);
-              const roleLabel = role.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+              const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
               return (
                 <div
                   key={member.id}
@@ -171,12 +173,25 @@ const Members = () => {
                       <h3 className="font-display font-bold text-lg text-foreground">
                         {member.full_name}
                       </h3>
-                      <Badge
-                        variant="outline"
-                        className={cn("text-xs mt-1", roleColors[role] || "bg-muted")}
-                      >
-                        {roleLabel}
-                      </Badge>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge
+                          variant="outline"
+                          className={cn("text-xs", roleColors[role] || "bg-muted")}
+                        >
+                          {roleLabel}
+                        </Badge>
+                        {canEditRoles && (
+                          <EditUserRoleDialog
+                            userId={member.user_id}
+                            userName={member.full_name}
+                            currentRole={role}
+                          >
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Shield className="w-3 h-3" />
+                            </Button>
+                          </EditUserRoleDialog>
+                        )}
+                      </div>
                       {member.committee && (
                         <p className="text-sm text-muted-foreground mt-1">
                           {member.committee}
@@ -220,7 +235,7 @@ const Members = () => {
               <tbody>
                 {filteredMembers.map((member) => {
                   const role = getRoleForUser(member.user_id);
-                  const roleLabel = role.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+                  const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
                   return (
                     <tr key={member.id} className="border-t border-border hover:bg-secondary/30 transition-colors">
                       <td className="p-4">
@@ -238,9 +253,22 @@ const Members = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <Badge variant="outline" className={cn("text-xs", roleColors[role] || "bg-muted")}>
-                          {roleLabel}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={cn("text-xs", roleColors[role] || "bg-muted")}>
+                            {roleLabel}
+                          </Badge>
+                          {canEditRoles && (
+                            <EditUserRoleDialog
+                              userId={member.user_id}
+                              userName={member.full_name}
+                              currentRole={role}
+                            >
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Shield className="w-3 h-3" />
+                              </Button>
+                            </EditUserRoleDialog>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">{member.committee || "-"}</td>
                       <td className="p-4">
