@@ -2,6 +2,7 @@ import { CheckCircle2, Circle, Clock, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const tasks = [
   {
@@ -51,11 +52,13 @@ const statusIcons = {
 };
 
 export function TaskList() {
+  const navigate = useNavigate();
+
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">My Tasks</h2>
-        <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+        <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => navigate("/tasks")}>
           View All
         </Button>
       </div>
