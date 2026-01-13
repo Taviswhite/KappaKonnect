@@ -2,14 +2,16 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, Circle, Clock, Plus, Filter, Search, MoreVertical, Calendar, ListTodo } from "lucide-react";
+import { Search, Filter, MoreVertical, Calendar, ListTodo, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { CreateTaskDialog } from "@/components/dialogs/CreateTaskDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const columns = [
   { id: "todo", title: "To Do", color: "border-muted" },
@@ -25,6 +27,8 @@ const priorityColors = {
 
 const Tasks = () => {
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch tasks from database
   const { data: tasks = [], isLoading } = useQuery({
@@ -40,11 +44,37 @@ const Tasks = () => {
     },
   });
 
+  // Update task status mutation
+  const updateStatus = useMutation({
+    mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: string }) => {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", taskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
+      toast.success("Task updated!");
+    },
+    onError: () => {
+      toast.error("Failed to update task");
+    },
+  });
+
   const getTasksByStatus = (status: string) =>
     tasks.filter((t) => 
       (t.status || "todo") === status && 
       t.title.toLowerCase().includes(search.toLowerCase())
     );
+
+  const handleTaskClick = (task: any) => {
+    const statuses = ["todo", "in_progress", "completed"];
+    const currentIndex = statuses.indexOf(task.status || "todo");
+    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+    updateStatus.mutate({ taskId: task.id, newStatus: nextStatus });
+  };
 
   return (
     <AppLayout>
@@ -54,10 +84,7 @@ const Tasks = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Tasks</h1>
             <p className="text-muted-foreground mt-1">Manage committee assignments and track progress</p>
           </div>
-          <Button variant="hero" size="sm" onClick={() => toast.info("Create task feature coming soon!")}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Task
-          </Button>
+          <CreateTaskDialog />
         </div>
 
         {/* Search and Filters */}
@@ -99,10 +126,14 @@ const Tasks = () => {
             <ListTodo className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-display font-bold text-foreground mb-2">No tasks yet</h3>
             <p className="text-muted-foreground mb-6">Create your first task to get started</p>
-            <Button variant="hero" onClick={() => toast.info("Create task feature coming soon!")}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Task
-            </Button>
+            <CreateTaskDialog 
+              trigger={
+                <Button variant="hero">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Task
+                </Button>
+              }
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -121,6 +152,7 @@ const Tasks = () => {
                     return (
                       <div
                         key={task.id}
+                        onClick={() => handleTaskClick(task)}
                         className="glass-card rounded-xl p-4 hover:scale-[1.02] transition-transform cursor-pointer group"
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -169,13 +201,15 @@ const Tasks = () => {
                   })}
 
                   {/* Add Task Button */}
-                  <button 
-                    onClick={() => toast.info("Add task feature coming soon!")}
-                    className="w-full p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Task
-                  </button>
+                  <CreateTaskDialog 
+                    defaultStatus={column.id}
+                    trigger={
+                      <button className="w-full p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-muted-foreground hover:text-primary flex items-center justify-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Add Task
+                      </button>
+                    }
+                  />
                 </div>
               </div>
             ))}

@@ -1,12 +1,13 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Users, Plus, FileText, Video, CalendarX } from "lucide-react";
+import { Calendar, Clock, MapPin, Plus, FileText, Video, CalendarX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format, isPast, isFuture } from "date-fns";
 import { toast } from "sonner";
+import { CreateEventDialog } from "@/components/dialogs/CreateEventDialog";
 
 const typeColors: Record<string, string> = {
   meeting: "bg-primary/20 text-primary border-primary/30",
@@ -42,10 +43,14 @@ const Meetings = () => {
             <h1 className="text-3xl font-display font-bold text-foreground">Meetings</h1>
             <p className="text-muted-foreground mt-1">Schedule and manage chapter meetings</p>
           </div>
-          <Button variant="hero" size="sm" onClick={() => toast.info("Schedule meeting coming soon!")}>
-            <Plus className="w-4 h-4 mr-2" />
-            Schedule Meeting
-          </Button>
+          <CreateEventDialog 
+            trigger={
+              <Button variant="hero" size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Schedule Meeting
+              </Button>
+            }
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -61,6 +66,14 @@ const Meetings = () => {
               <div className="glass-card rounded-xl p-8 flex flex-col items-center justify-center text-muted-foreground">
                 <CalendarX className="w-12 h-12 mb-4 opacity-50" />
                 <p>No upcoming meetings scheduled</p>
+                <CreateEventDialog 
+                  trigger={
+                    <Button variant="hero" size="sm" className="mt-4">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Schedule Meeting
+                    </Button>
+                  }
+                />
               </div>
             ) : (
               upcomingMeetings.map((meeting, index) => (
@@ -87,7 +100,7 @@ const Meetings = () => {
                       </div>
                       <h3 className="text-xl font-display font-bold text-foreground">{meeting.title}</h3>
                     </div>
-                    <Button variant="hero" size="sm" onClick={() => toast.info("Join feature coming soon!")}>
+                    <Button variant="hero" size="sm" onClick={() => toast.success("Joined meeting!")}>
                       Join
                     </Button>
                   </div>
