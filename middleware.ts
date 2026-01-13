@@ -30,6 +30,10 @@ const THREAT_PATTERNS = {
     /<iframe/i,
     /<object/i,
     /<embed/i,
+    /alert\s*\(/i,
+    /eval\s*\(/i,
+    /document\.cookie/i,
+    /document\.write/i,
   ],
   pathTraversal: [
     /\.\.\//g,
@@ -186,10 +190,16 @@ export default function middleware(request: EdgeRequest): EdgeResponse | undefin
 
   // 4. Check query parameters for threats
   if (searchParams) {
+    // Decode URL-encoded parameters for better detection
+    const decodedParams = decodeURIComponent(searchParams);
+    
     if (
       detectThreat(searchParams, THREAT_PATTERNS.sqlInjection) ||
+      detectThreat(decodedParams, THREAT_PATTERNS.sqlInjection) ||
       detectThreat(searchParams, THREAT_PATTERNS.xss) ||
-      detectThreat(searchParams, THREAT_PATTERNS.commandInjection)
+      detectThreat(decodedParams, THREAT_PATTERNS.xss) ||
+      detectThreat(searchParams, THREAT_PATTERNS.commandInjection) ||
+      detectThreat(decodedParams, THREAT_PATTERNS.commandInjection)
     ) {
       console.error(`[WAF] BLOCKED - Malicious query: ${searchParams.substring(0, 200)} from ${clientIP}`);
       return new Response(
@@ -225,5 +235,7 @@ export const config = {
      * - Favicon
      */
     '/((?!.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot|json|xml|txt)).*)',
+    // Also match query parameters for threat detection
+    '/(.*)',
   ],
 };
