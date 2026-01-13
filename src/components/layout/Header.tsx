@@ -67,26 +67,15 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-primary text-primary-foreground text-[10px] sm:text-xs rounded-full flex items-center justify-center">
-                  3
-                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-72 sm:w-80 glass-card">
               <DropdownMenuLabel className="font-display">Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">Chapter Meeting Tonight</span>
-                <span className="text-xs text-muted-foreground">Don't forget the meeting at 7 PM</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">New Task Assigned</span>
-                <span className="text-xs text-muted-foreground">Review budget proposal</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">Payment Reminder</span>
-                <span className="text-xs text-muted-foreground">Dues payment due in 3 days</span>
-              </DropdownMenuItem>
+              <div className="py-6 text-center">
+                <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No new notifications</p>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
