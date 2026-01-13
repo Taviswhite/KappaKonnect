@@ -1,60 +1,126 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip } from "lucide-react";
+import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const channels = [
-  { id: 1, name: "general", unread: 3, type: "channel" },
-  { id: 2, name: "announcements", unread: 0, type: "channel", pinned: true },
-  { id: 3, name: "executive-board", unread: 1, type: "channel" },
-  { id: 4, name: "social-committee", unread: 0, type: "channel" },
-  { id: 5, name: "service-committee", unread: 5, type: "channel" },
-];
-
-const directMessages = [
-  { id: 1, name: "Marcus Johnson", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100", online: true, unread: 2 },
-  { id: 2, name: "David Williams", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100", online: true, unread: 0 },
-  { id: 3, name: "Alex Thompson", avatar: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=100", online: false, unread: 0 },
-];
-
-const messages = [
-  {
-    id: 1,
-    user: { name: "Marcus Johnson", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100" },
-    content: "Hey everyone! Don't forget about the chapter meeting tonight at 7 PM.",
-    time: "2:30 PM",
-    reactions: [{ emoji: "👍", count: 5 }, { emoji: "✅", count: 3 }],
-  },
-  {
-    id: 2,
-    user: { name: "David Williams", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100" },
-    content: "Thanks for the reminder! I'll be there. Also, I have the budget report ready to present.",
-    time: "2:35 PM",
-    reactions: [],
-  },
-  {
-    id: 3,
-    user: { name: "James Davis", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" },
-    content: "Great! We'll go through the budget first, then discuss the upcoming community service event. Make sure to bring any ideas you have for spring initiatives.",
-    time: "2:38 PM",
-    reactions: [{ emoji: "🔥", count: 2 }],
-  },
-  {
-    id: 4,
-    user: { name: "Alex Thompson", avatar: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=100" },
-    content: "I've been working on the alumni networking event proposal. Should I share it tonight?",
-    time: "2:45 PM",
-    reactions: [{ emoji: "👍", count: 4 }],
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 const Chat = () => {
-  const [selectedChannel, setSelectedChannel] = useState("general");
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+
+  // Fetch channels
+  const { data: channels = [] } = useQuery({
+    queryKey: ["channels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("channels")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch messages for selected channel
+  const { data: messages = [] } = useQuery({
+    queryKey: ["messages", selectedChannelId],
+    queryFn: async () => {
+      if (!selectedChannelId) return [];
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*, profiles:sender_id(full_name, avatar_url)")
+        .eq("channel_id", selectedChannelId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedChannelId,
+  });
+
+  // Fetch profiles for DMs
+  const { data: members = [] } = useQuery({
+    queryKey: ["chat-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url")
+        .neq("user_id", user?.id || "")
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Set first channel as default
+  useEffect(() => {
+    if (channels.length > 0 && !selectedChannelId) {
+      setSelectedChannelId(channels[0].id);
+    }
+  }, [channels, selectedChannelId]);
+
+  // Subscribe to realtime messages
+  useEffect(() => {
+    if (!selectedChannelId) return;
+
+    const channel = supabase
+      .channel("messages-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `channel_id=eq.${selectedChannelId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["messages", selectedChannelId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChannelId, queryClient]);
+
+  // Send message mutation
+  const sendMessage = useMutation({
+    mutationFn: async (content: string) => {
+      if (!user || !selectedChannelId) throw new Error("Not authenticated or no channel selected");
+      const { error } = await supabase.from("messages").insert({
+        channel_id: selectedChannelId,
+        sender_id: user.id,
+        content,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setMessage("");
+      queryClient.invalidateQueries({ queryKey: ["messages", selectedChannelId] });
+    },
+    onError: () => {
+      toast.error("Failed to send message");
+    },
+  });
+
+  const handleSendMessage = () => {
+    if (message.trim()) {
+      sendMessage.mutate(message.trim());
+    }
+  };
+
+  const selectedChannel = channels.find((c) => c.id === selectedChannelId);
 
   return (
     <AppLayout>
@@ -75,31 +141,29 @@ const Chat = () => {
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Channels
                 </span>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toast.info("Create channel coming soon!")}>
                   <span className="text-lg">+</span>
                 </Button>
               </div>
-              {channels.map((channel) => (
-                <button
-                  key={channel.id}
-                  onClick={() => setSelectedChannel(channel.name)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left",
-                    selectedChannel === channel.name
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-secondary text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Hash className="w-4 h-4 shrink-0" />
-                  <span className="flex-1 truncate">{channel.name}</span>
-                  {channel.pinned && <Pin className="w-3 h-3" />}
-                  {channel.unread > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                      {channel.unread}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {channels.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-3 py-2">No channels yet</p>
+              ) : (
+                channels.map((channel) => (
+                  <button
+                    key={channel.id}
+                    onClick={() => setSelectedChannelId(channel.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left",
+                      selectedChannelId === channel.id
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Hash className="w-4 h-4 shrink-0" />
+                    <span className="flex-1 truncate">{channel.name}</span>
+                  </button>
+                ))
+              )}
             </div>
 
             {/* Direct Messages */}
@@ -109,28 +173,23 @@ const Chat = () => {
                   Direct Messages
                 </span>
               </div>
-              {directMessages.map((dm) => (
-                <button
-                  key={dm.id}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left hover:bg-secondary"
-                >
-                  <div className="relative">
+              {members.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-3 py-2">No members</p>
+              ) : (
+                members.map((member) => (
+                  <button
+                    key={member.user_id}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left hover:bg-secondary"
+                    onClick={() => toast.info("Direct messages coming soon!")}
+                  >
                     <Avatar className="w-6 h-6">
-                      <AvatarImage src={dm.avatar} />
-                      <AvatarFallback className="text-xs">{dm.name[0]}</AvatarFallback>
+                      <AvatarImage src={member.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">{member.full_name?.[0] || "?"}</AvatarFallback>
                     </Avatar>
-                    {dm.online && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-card" />
-                    )}
-                  </div>
-                  <span className="flex-1 truncate text-sm">{dm.name}</span>
-                  {dm.unread > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                      {dm.unread}
-                    </span>
-                  )}
-                </button>
-              ))}
+                    <span className="flex-1 truncate text-sm">{member.full_name}</span>
+                  </button>
+                ))
+              )}
             </div>
           </ScrollArea>
         </div>
@@ -142,8 +201,12 @@ const Chat = () => {
             <div className="flex items-center gap-3">
               <Hash className="w-5 h-5 text-muted-foreground" />
               <div>
-                <h2 className="font-display font-bold text-foreground">{selectedChannel}</h2>
-                <p className="text-xs text-muted-foreground">42 members</p>
+                <h2 className="font-display font-bold text-foreground">
+                  {selectedChannel?.name || "Select a channel"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {selectedChannel?.description || "No description"}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -161,37 +224,37 @@ const Chat = () => {
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-6">
-            <div className="space-y-6">
-              {messages.map((msg) => (
-                <div key={msg.id} className="flex items-start gap-3 group">
-                  <Avatar className="w-10 h-10 border border-border">
-                    <AvatarImage src={msg.user.avatar} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {msg.user.name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">{msg.user.name}</span>
-                      <span className="text-xs text-muted-foreground">{msg.time}</span>
-                    </div>
-                    <p className="text-foreground/90 mt-1">{msg.content}</p>
-                    {msg.reactions.length > 0 && (
-                      <div className="flex items-center gap-1 mt-2">
-                        {msg.reactions.map((reaction, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-sm"
-                          >
-                            {reaction.emoji} {reaction.count}
-                          </span>
-                        ))}
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
+                <p>No messages yet</p>
+                <p className="text-sm">Be the first to send a message!</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {messages.map((msg: any) => (
+                  <div key={msg.id} className="flex items-start gap-3 group">
+                    <Avatar className="w-10 h-10 border border-border">
+                      <AvatarImage src={msg.profiles?.avatar_url || undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {msg.profiles?.full_name?.[0] || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">
+                          {msg.profiles?.full_name || "Unknown"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(msg.created_at), "h:mm a")}
+                        </span>
                       </div>
-                    )}
+                      <p className="text-foreground/90 mt-1">{msg.content}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
 
           {/* Input */}
@@ -201,15 +264,16 @@ const Chat = () => {
                 <Paperclip className="w-5 h-5" />
               </Button>
               <Input
-                placeholder={`Message #${selectedChannel}`}
+                placeholder={`Message #${selectedChannel?.name || "channel"}`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                 className="flex-1 bg-secondary/50"
               />
               <Button variant="ghost" size="icon">
                 <Smile className="w-5 h-5" />
               </Button>
-              <Button variant="hero" size="icon">
+              <Button variant="hero" size="icon" onClick={handleSendMessage} disabled={!message.trim()}>
                 <Send className="w-5 h-5" />
               </Button>
             </div>
