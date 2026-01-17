@@ -4,7 +4,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { TaskList } from "@/components/dashboard/TaskList";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { Users, Calendar, CheckSquare, DollarSign, TrendingUp, Clock } from "lucide-react";
+import { Users, Calendar, CheckSquare, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -117,31 +117,6 @@ const Index = () => {
     showErrorToast(memberCountError, "Failed to load member count");
   }
 
-  // Fetch dues collected (admin/officer only)
-  const { data: duesData, error: duesError } = useQuery({
-    queryKey: ["dues-collected"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("amount, status");
-      
-      if (error) throw error;
-      
-      const payments = data || [];
-      const collected = payments
-        .filter(p => p.status === "paid" || p.status === "completed")
-        .reduce((sum, p) => sum + Number(p.amount), 0);
-      const total = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const percent = total > 0 ? Math.round((collected / total) * 100) : 0;
-      
-      return { collected, percent };
-    },
-    enabled: canViewSensitiveStats,
-  });
-
-  if (duesError) {
-    showErrorToast(duesError, "Failed to load payment data");
-  }
 
   return (
     <AppLayout>
@@ -157,7 +132,7 @@ const Index = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className={`grid grid-cols-2 ${canViewSensitiveStats ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-3 sm:gap-4 md:gap-6`}>
+        <div className={`grid grid-cols-2 ${canViewSensitiveStats ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-3 sm:gap-4 md:gap-6`}>
           {canViewSensitiveStats && (
             <StatCard
               title="Active Members"
@@ -184,16 +159,6 @@ const Index = () => {
             icon={CheckSquare}
             iconColor="primary"
           />
-          {canViewSensitiveStats && (
-            <StatCard
-              title="Dues Collected"
-              value={duesData?.collected ? `$${duesData.collected.toLocaleString()}` : "$0"}
-              change={duesData?.percent ? `${duesData.percent}% collected` : "No payments yet"}
-              changeType={duesData?.percent && duesData.percent > 50 ? "positive" : "neutral"}
-              icon={DollarSign}
-              iconColor="accent"
-            />
-          )}
         </div>
 
         {/* Main Content Grid */}
@@ -243,15 +208,6 @@ const Index = () => {
                 <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
                 <p className="font-medium text-foreground text-sm sm:text-base">Check In</p>
                 <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">QR attendance</p>
-              </button>
-              <button 
-                onClick={() => navigate("/payments")}
-                className="p-3 sm:p-4 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 transition-all group"
-                aria-label="View payment reports"
-              >
-                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
-                <p className="font-medium text-foreground text-sm sm:text-base">View Reports</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Analytics dashboard</p>
               </button>
             </div>
           </div>

@@ -12,7 +12,6 @@ import Members from "./pages/Members";
 import Tasks from "./pages/Tasks";
 import Meetings from "./pages/Meetings";
 import Chat from "./pages/Chat";
-import Payments from "./pages/Payments";
 import Attendance from "./pages/Attendance";
 import Alumni from "./pages/Alumni";
 import Documents from "./pages/Documents";
@@ -36,7 +35,6 @@ export const appRoutes = (
     <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
     <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
     <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-    <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
     <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
     <Route path="/alumni" element={<ProtectedRoute><Alumni /></ProtectedRoute>} />
     <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
