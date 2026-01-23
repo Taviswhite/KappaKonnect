@@ -362,7 +362,7 @@ SELECT
   id,
   'Service Day Reminder',
   'Don''t forget to check in using the QR code at the event.',
-  'reminder',
+  'event',
   FALSE,
   NOW() - INTERVAL '2 hours'
 FROM auth.users WHERE email = 'member2@example.com'
