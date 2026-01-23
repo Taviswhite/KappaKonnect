@@ -48,7 +48,8 @@ const Chat = () => {
       const { data, error } = await supabase
         .from("channels")
         .select("*")
-        .order("is_pinned", { ascending: false })
+        // Some databases (like your demo project) may not have the is_pinned column,
+        // so we only order by created_at to avoid 400 errors from PostgREST.
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data as Channel[];
@@ -259,7 +260,8 @@ const Chat = () => {
                   >
                     <Hash className="w-4 h-4 shrink-0" />
                     <span className="flex-1 truncate">{channel.name}</span>
-                    {channel.is_pinned && <Pin className="w-3 h-3" />}
+                      {/* Only show pin icon if the column exists in this project */}
+                      {channel.is_pinned && <Pin className="w-3 h-3" />}
                   </button>
                 ))
               )}
