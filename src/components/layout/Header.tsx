@@ -127,6 +127,28 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
     (searchResults?.tasks.length || 0) + 
     (searchResults?.documents.length || 0);
 
+  const primaryRole = roles[0]?.role || "member";
+  const roleLabel = primaryRole.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const handleSearchResultClick = (type: string, id: string) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    switch (type) {
+      case "member":
+        navigate(`/members`);
+        break;
+      case "event":
+        navigate(`/events`);
+        break;
+      case "task":
+        navigate(`/tasks`);
+        break;
+      case "document":
+        navigate(`/documents`);
+        break;
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 h-14 sm:h-16 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="flex items-center justify-between h-full px-3 sm:px-6">

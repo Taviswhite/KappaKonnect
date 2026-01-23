@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,12 +116,13 @@ const Chat = () => {
   });
 
   // Filter messages by search query (after messages is defined)
-  const filteredMessages = searchQuery
-    ? messages.filter((msg) =>
-        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : messages;
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery) return messages;
+    return messages.filter((msg) =>
+      msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [messages, searchQuery]);
 
   // Real-time subscription for messages
   useEffect(() => {
