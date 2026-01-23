@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip, Edit, Trash2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,14 +61,6 @@ const Chat = () => {
     },
   });
 
-  // Filter messages by search query
-  const filteredMessages = searchQuery
-    ? messages.filter((msg) =>
-        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : messages;
-
   // Filter channels by search query
   const filteredChannels = channelSearchQuery
     ? channels.filter((channel) =>
@@ -122,6 +114,14 @@ const Chat = () => {
     },
     enabled: !!selectedChannelId,
   });
+
+  // Filter messages by search query (after messages is defined)
+  const filteredMessages = searchQuery
+    ? messages.filter((msg) =>
+        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
 
   // Real-time subscription for messages
   useEffect(() => {
