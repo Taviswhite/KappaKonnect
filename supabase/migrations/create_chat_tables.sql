@@ -123,9 +123,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Drop existing triggers if they already exist to make this migration idempotent
+DROP TRIGGER IF EXISTS update_channels_updated_at ON public.channels;
 CREATE TRIGGER update_channels_updated_at BEFORE UPDATE ON public.channels
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_messages_updated_at ON public.messages;
 CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON public.messages
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
