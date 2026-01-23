@@ -71,8 +71,11 @@ export function CreateEventDialog({ children }: CreateEventDialogProps) {
 
       toast.success("Event created successfully!");
       queryClient.invalidateQueries({ queryKey: ["all-events"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
       queryClient.invalidateQueries({ queryKey: ["upcoming-events-count"] });
       queryClient.invalidateQueries({ queryKey: ["next-event"] });
+      queryClient.invalidateQueries({ queryKey: ["upcoming-events-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-events"] });
       reset();
       setOpen(false);
     } catch (error) {

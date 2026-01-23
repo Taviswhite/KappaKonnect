@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { FolderOpen } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 const folderSchema = z.object({
   name: z.string().min(1, "Folder name is required"),
@@ -21,6 +24,8 @@ interface CreateFolderDialogProps {
 
 export function CreateFolderDialog({ children }: CreateFolderDialogProps) {
   const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const {
     register,
@@ -32,15 +37,33 @@ export function CreateFolderDialog({ children }: CreateFolderDialogProps) {
   });
 
   const onSubmit = async (data: FolderFormData) => {
-    // Note: This would require a folders table in the database
-    // For now, we'll just show a success message
-    // In a real implementation, you would:
-    // 1. Create a folders table in Supabase
-    // 2. Insert folder: await supabase.from("folders").insert({ name: data.name, ... })
-    
-    toast.success(`Folder "${data.name}" created! (Note: Database table needed for persistence)`);
-    reset();
-    setOpen(false);
+    if (!user) {
+      toast.error("You must be logged in to create folders");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("document_folders")
+        .insert({
+          name: data.name,
+          created_by: user.id,
+        });
+
+      if (error) {
+        console.error("Error creating folder:", error);
+        throw error;
+      }
+
+      toast.success(`Folder "${data.name}" created successfully!`);
+      queryClient.invalidateQueries({ queryKey: ["document_folders"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      reset();
+      setOpen(false);
+    } catch (error) {
+      console.error("Error creating folder:", error);
+      toast.error("Failed to create folder. Please try again.");
+    }
   };
 
   return (

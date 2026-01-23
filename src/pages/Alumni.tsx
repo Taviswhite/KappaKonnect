@@ -19,17 +19,22 @@ const Alumni = () => {
   // Check if user can add alumni (admin or alumni role)
   const canAddAlumni = hasRole("admin") || hasRole("alumni");
 
-  // Fetch alumni from database (profiles with graduation_year)
+  // Fetch alumni from database (alumni table)
   const { data: alumni = [], isLoading } = useQuery({
     queryKey: ["alumni"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("alumni")
         .select("*")
-        .not("graduation_year", "is", null)
         .order("graduation_year", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (error) {
+        // If table doesn't exist, return empty array
+        if (error.code === "42P01") {
+          return [];
+        }
+        throw error;
+      }
+      return data || [];
     },
   });
 

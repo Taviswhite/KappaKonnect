@@ -80,10 +80,21 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
         if (updateError) throw updateError;
         toast.success("Alumni profile updated!");
       } else {
-        // Note: For new alumni, you would typically invite them via email
-        // For now, we'll create a profile entry that can be linked to a user later
-        // In production, you'd use Supabase Auth to send an invitation email
-        toast.info("Alumni invitation feature coming soon! For now, profiles can be created manually in the database.");
+        // Create alumni record in alumni table
+        const { error: alumniError } = await supabase
+          .from("alumni")
+          .insert({
+            full_name: data.full_name,
+            email: data.email,
+            graduation_year: data.graduation_year,
+            current_company: data.company || null,
+            current_position: data.position || null,
+            location: data.location || null,
+            linkedin_url: data.linkedin_url || null,
+          });
+
+        if (alumniError) throw alumniError;
+        toast.success("Alumni record created successfully!");
       }
 
       queryClient.invalidateQueries({ queryKey: ["alumni"] });

@@ -44,7 +44,7 @@ const Documents = () => {
   // Filter documents by search
   const filteredDocuments = documents.filter((doc) =>
     doc.name?.toLowerCase().includes(search.toLowerCase()) ||
-    doc.type?.toLowerCase().includes(search.toLowerCase())
+    doc.file_type?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -138,14 +138,14 @@ const Documents = () => {
                 </div>
                 <div className="col-span-2">
                   <Badge variant="outline" className="text-xs">
-                    {doc.type || "Document"}
+                    {doc.file_type || "Document"}
                   </Badge>
                 </div>
                 <div className="col-span-2 text-sm text-muted-foreground">
                   {doc.updated_at ? format(new Date(doc.updated_at), "MMM d, yyyy") : "-"}
                 </div>
                 <div className="col-span-2 text-sm text-muted-foreground">
-                  {doc.size ? `${(doc.size / 1024).toFixed(1)} KB` : "-"}
+                  {doc.file_size ? doc.file_size : "-"}
                 </div>
                 <div className="col-span-1 flex items-center justify-end gap-1">
                   {doc.file_url && (
