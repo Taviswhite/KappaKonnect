@@ -13,6 +13,12 @@ import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { useSearchParams } from "react-router-dom";
 
+// Use a configurable base URL so QR codes work from phones (not just localhost)
+const QR_BASE_URL =
+  import.meta.env.VITE_PUBLIC_BASE_URL && import.meta.env.VITE_PUBLIC_BASE_URL.trim().length > 0
+    ? import.meta.env.VITE_PUBLIC_BASE_URL.trim().replace(/\/+$/, "")
+    : window.location.origin;
+
 const Attendance = () => {
   const [showQR, setShowQR] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -178,7 +184,7 @@ const Attendance = () => {
                 <div className="w-64 h-64 bg-white rounded-2xl p-4 border-2 border-black flex items-center justify-center shadow-lg">
                   {currentEvent && (
                     <QRCodeSVG
-                      value={`${window.location.origin}/attendance?event=${currentEvent.id}&checkin=true`}
+                      value={`${QR_BASE_URL}/attendance?event=${currentEvent.id}&checkin=true`}
                       size={230}
                       level="H"
                       includeMargin={true}
