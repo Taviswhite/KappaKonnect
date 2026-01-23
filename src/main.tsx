@@ -24,10 +24,16 @@ if (typeof window !== "undefined") {
 
   // Also intercept error events for network failures
   window.addEventListener("error", (event) => {
-    const target = event.target as HTMLElement;
-    const src = (target as HTMLScriptElement | HTMLLinkElement)?.src || 
-                (target as HTMLLinkElement)?.href || 
-                "";
+    const target = event.target;
+    let src = "";
+    
+    if (target instanceof HTMLScriptElement) {
+      src = target.src || "";
+    } else if (target instanceof HTMLLinkElement) {
+      src = target.href || "";
+    } else if (target instanceof HTMLImageElement) {
+      src = target.src || "";
+    }
     
     if (
       src &&
