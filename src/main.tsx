@@ -13,13 +13,47 @@ if (typeof window !== "undefined") {
     if (
       message.includes("Failed to load resource") &&
       (message.includes("notifications") || 
-       message.includes("notification_preferences"))
+       message.includes("notification_preferences") ||
+       message.includes("(line 0)"))
     ) {
       // Suppress these harmless errors - they're just browser prefetch attempts
       return;
     }
     originalError.apply(console, args);
   };
+
+  // Also intercept error events for network failures
+  window.addEventListener("error", (event) => {
+    const target = event.target as HTMLElement;
+    const src = (target as HTMLScriptElement | HTMLLinkElement)?.src || 
+                (target as HTMLLinkElement)?.href || 
+                "";
+    
+    if (
+      src &&
+      (src.includes("/notifications") || 
+       src.includes("/notification_preferences")) &&
+      !src.includes("supabase") &&
+      !src.includes("api")
+    ) {
+      // Prevent these errors from showing in console
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  }, true);
+
+  // Intercept unhandled promise rejections for fetch errors
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason?.toString() || "";
+    if (
+      reason.includes("notifications") || 
+      reason.includes("notification_preferences") ||
+      reason.includes("404")
+    ) {
+      event.preventDefault();
+    }
+  });
 }
 
 // Check URL for threats before rendering the app
