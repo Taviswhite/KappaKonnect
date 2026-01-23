@@ -24,12 +24,17 @@ const queryClient = new QueryClient({
   },
 });
 
+// This component runs inside AuthProvider so it can safely use useNotifications (which uses useAuth)
+const NotificationsInitializer = () => {
+  useNotifications();
+  return null;
+};
+
 const AppContent = () => {
-  useNotifications(); // Initialize notification handling
-  
   return (
     <BrowserRouter>
       <AuthProvider>
+        <NotificationsInitializer />
         <Routes>
           {appRoutes}
         </Routes>
