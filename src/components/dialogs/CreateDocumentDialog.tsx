@@ -53,6 +53,8 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       return;
     }
 
+    console.log("Creating document with data:", { name: data.name, fileType, user: user.id });
+
     try {
       const file = fileInputRef.current?.files?.[0];
       let fileUrl = null;
@@ -67,6 +69,8 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
           const fileExt = file.name.split('.').pop();
           const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
           const filePath = `${user.id}/${fileName}`;
+
+          console.log("Uploading file to:", filePath);
 
           // Upload to Supabase Storage
           const { data: uploadData, error: uploadError } = await supabase.storage
@@ -92,6 +96,7 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
               .getPublicUrl(uploadData.path);
             
             fileUrl = publicUrlData.publicUrl;
+            console.log("File uploaded successfully:", fileUrl);
           }
         } catch (storageError) {
           console.error("Storage error:", storageError);
@@ -100,26 +105,39 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
         }
       }
 
+      // Prepare insert data
+      const insertData = {
+        name: data.name,
+        file_type: fileType,
+        file_size: fileSize,
+        file_url: fileUrl,
+        created_by: user.id,
+      };
+
+      console.log("Inserting document:", insertData);
+
       // Always try to save document metadata, even without file
-      const { error: dbError } = await supabase
+      const { error: dbError, data: insertedData } = await supabase
         .from("documents")
-        .insert({
-          name: data.name,
-          description: data.description || null,
-          file_type: fileType,
-          file_size: fileSize,
-          file_url: fileUrl,
-          created_by: user.id,
-        });
+        .insert(insertData)
+        .select()
+        .single();
 
       if (dbError) {
         console.error("Database error:", dbError);
+        console.error("Error code:", dbError.code);
+        console.error("Error message:", dbError.message);
+        console.error("Error details:", dbError.details);
+        console.error("Error hint:", dbError.hint);
+        
         // Show detailed error message
         let errorMsg = "Failed to create document. ";
         if (dbError.code === '42501') {
           errorMsg += "Permission denied. Please ensure you're logged in and have the correct permissions.";
         } else if (dbError.code === '42P01') {
           errorMsg += "Documents table not found. Please run database migrations.";
+        } else if (dbError.code === '42703') {
+          errorMsg += `Database schema mismatch: ${dbError.message}`;
         } else if (dbError.message) {
           errorMsg += dbError.message;
         } else {
@@ -128,6 +146,8 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
         toast.error(errorMsg);
         throw dbError;
       }
+
+      console.log("Document created successfully:", insertedData);
 
       toast.success(`Document "${data.name}" created successfully!`);
       queryClient.invalidateQueries({ queryKey: ["documents"] });
