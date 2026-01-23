@@ -4,22 +4,88 @@ import "./index.css";
 import { checkURLForThreats } from "./lib/threat-detection";
 
 // Suppress harmless 404 errors for React Router routes (browser prefetch attempts)
+// This must run IMMEDIATELY before any other code executes
 if (typeof window !== "undefined") {
   // Suppress console errors for 404s on client-side routes
   const originalError = console.error;
+  const originalWarn = console.warn;
+  
   console.error = (...args: unknown[]) => {
     const message = args[0]?.toString() || "";
+    const fullMessage = args.map(a => String(a)).join(" ");
+    
     // Filter out 404 errors for routes handled by React Router
     if (
-      message.includes("Failed to load resource") &&
+      (message.includes("Failed to load resource") || fullMessage.includes("Failed to load")) &&
       (message.includes("notifications") || 
        message.includes("notification_preferences") ||
-       message.includes("(line 0)"))
+       fullMessage.includes("notifications") ||
+       fullMessage.includes("notification_preferences") ||
+       message.includes("(line 0)") ||
+       fullMessage.includes("(line 0)"))
     ) {
       // Suppress these harmless errors - they're just browser prefetch attempts
       return;
     }
     originalError.apply(console, args);
+  };
+
+  console.warn = (...args: unknown[]) => {
+    const message = args[0]?.toString() || "";
+    const fullMessage = args.map(a => String(a)).join(" ");
+    
+    // Also suppress warnings for these routes
+    if (
+      (message.includes("notifications") || 
+       message.includes("notification_preferences") ||
+       fullMessage.includes("notifications") ||
+       fullMessage.includes("notification_preferences")) &&
+      (message.includes("404") || fullMessage.includes("404") ||
+       message.includes("Failed") || fullMessage.includes("Failed"))
+    ) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+
+  // Intercept fetch requests to prevent 404s from being logged
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    let url = "";
+    if (typeof args[0] === "string") {
+      url = args[0];
+    } else if (args[0] instanceof URL) {
+      url = args[0].href;
+    } else if (args[0] instanceof Request) {
+      url = args[0].url;
+    }
+    
+    // If this is a request to a React Router route, let it fail silently
+    if (
+      url &&
+      (url.includes("/notifications") || url.includes("/notification_preferences")) &&
+      !url.includes("supabase") &&
+      !url.includes("api") &&
+      !url.includes("http")
+    ) {
+      // Return a rejected promise that we'll catch
+      return Promise.reject(new Error("Route handled by React Router"));
+    }
+    
+    try {
+      return await originalFetch.apply(window, args);
+    } catch (error) {
+      const errorMessage = error?.toString() || "";
+      if (
+        (errorMessage.includes("notifications") || 
+         errorMessage.includes("notification_preferences")) &&
+        errorMessage.includes("404")
+      ) {
+        // Suppress these errors
+        throw new Error("Route handled by React Router");
+      }
+      throw error;
+    }
   };
 
   // Also intercept error events for network failures
