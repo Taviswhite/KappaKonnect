@@ -132,13 +132,15 @@ BEGIN
 END $$;
 
 -- Create alumni record
-INSERT INTO public.alumni (profile_id, occupation, location, notes)
-SELECT id, 'Software Engineer', 'Atlanta, GA', 'Active mentor for undergraduate chapter.'
+INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+SELECT id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA'
 FROM auth.users WHERE email = 'alumni@example.com'
-ON CONFLICT (profile_id) DO UPDATE SET
-  occupation = EXCLUDED.occupation,
-  location = EXCLUDED.location,
-  notes = EXCLUDED.notes;
+ON CONFLICT (user_id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  email = EXCLUDED.email,
+  graduation_year = EXCLUDED.graduation_year,
+  current_position = EXCLUDED.current_position,
+  location = EXCLUDED.location;
 
 -- ============================================
 -- STEP 3: CREATE EVENTS
