@@ -174,15 +174,16 @@ const Attendance = () => {
 
             {showQR ? (
               <div className="relative">
-                <div className="w-64 h-64 bg-background rounded-2xl p-4 glow-primary border-2 border-primary/30 flex items-center justify-center">
+                {/* High-contrast QR wrapper for better phone scanning */}
+                <div className="w-64 h-64 bg-white rounded-2xl p-4 border-2 border-black flex items-center justify-center shadow-lg">
                   {currentEvent && (
                     <QRCodeSVG
                       value={`${window.location.origin}/attendance?event=${currentEvent.id}&checkin=true`}
-                      size={240}
+                      size={230}
                       level="H"
-                      includeMargin={false}
-                      fgColor="currentColor"
-                      className="text-foreground"
+                      includeMargin={true}
+                      bgColor="#ffffff"
+                      fgColor="#000000"
                     />
                   )}
                 </div>
