@@ -155,9 +155,20 @@ BEGIN
   END IF;
 END $$;
 
--- ============================================
 -- STEP 3: CREATE EVENTS
 -- ============================================
+
+-- Make events seeding idempotent: clear any existing demo events first
+DELETE FROM public.events
+WHERE title IN (
+  'Interest Meeting',
+  'Service Day',
+  'Alumni Mixer',
+  'Study Night',
+  'Community Cleanup',
+  'Scholarship Info Session',
+  'Career Panel'
+);
 
 -- Core featured events
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -312,13 +323,18 @@ BEGIN
   IF to_regclass('public.channel_members') IS NOT NULL
      AND to_regclass('public.messages') IS NOT NULL THEN
 
-    -- Add members to both channels
+    -- Add members to both channels (avoid ON CONFLICT in case there is no unique constraint)
     INSERT INTO public.channel_members (channel_id, user_id)
     SELECT c.id, u.id
     FROM public.channels c
     JOIN auth.users u ON u.email IN ('admin@example.com', 'eboard@example.com', 'chair@example.com', 'member1@example.com', 'member2@example.com')
     WHERE c.name IN ('General', 'Events & Announcements')
-    ON CONFLICT (channel_id, user_id) DO NOTHING;
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.channel_members cm
+        WHERE cm.channel_id = c.id
+          AND cm.user_id = u.id
+      );
 
     -- Seed messages in General channel
     INSERT INTO public.messages (channel_id, user_id, content)
@@ -363,6 +379,17 @@ END $$;
 -- ============================================
 -- STEP 6: CREATE TASKS
 -- ============================================
+
+-- Make tasks seeding idempotent: clear any existing demo tasks first
+DELETE FROM public.tasks
+WHERE title IN (
+  'Book venue for Interest Meeting',
+  'Design flyers',
+  'Prepare interest meeting slide deck',
+  'Order catering for Alumni Mixer',
+  'Promote Service Day on social media',
+  'Update alumni contact list'
+);
 
 -- Core tasks
 INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
