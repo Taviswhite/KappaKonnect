@@ -2,12 +2,15 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar, ChevronLeft, ChevronRight, MapPin, Users, Clock, Plus, Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, parseISO, isSameDay } from "date-fns";
+import { format, parseISO, isSameDay, subDays, subWeeks, subMonths, isAfter, isBefore } from "date-fns";
 import { CreateEventDialog } from "@/components/dialogs/CreateEventDialog";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -27,6 +30,12 @@ const months = [
 const Events = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    eventType: "all",
+    dateRange: "all",
+    location: "all",
+  });
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -78,11 +87,80 @@ const Events = () => {
 
   const hasEvent = (day: number) => {
     const date = getDateFromDay(day);
-    return events.some((e) => isSameDay(parseISO(e.start_time), date));
+    return filteredEvents.some((e) => isSameDay(parseISO(e.start_time), date));
+  };
+
+  // Filter events
+  const filteredEvents = events.filter((event) => {
+    // Event type filter
+    if (filters.eventType !== "all" && event.event_type !== filters.eventType) {
+      return false;
+    }
+
+    // Location filter
+    if (filters.location !== "all") {
+      if (filters.location === "virtual" && (!event.location || !event.location.toLowerCase().includes("virtual"))) {
+        return false;
+      }
+      if (filters.location === "in_person" && (!event.location || event.location.toLowerCase().includes("virtual"))) {
+        return false;
+      }
+    }
+
+    // Date range filter
+    if (filters.dateRange !== "all") {
+      const eventDate = parseISO(event.start_time);
+      const now = new Date();
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      switch (filters.dateRange) {
+        case "upcoming":
+          startDate = now;
+          endDate = null; // No end date
+          break;
+        case "past":
+          startDate = null;
+          endDate = now;
+          break;
+        case "today":
+          startDate = subDays(now, 1);
+          endDate = null;
+          break;
+        case "week":
+          startDate = subWeeks(now, 1);
+          endDate = null;
+          break;
+        case "month":
+          startDate = subMonths(now, 1);
+          endDate = null;
+          break;
+        default:
+          return true;
+      }
+
+      if (startDate && isBefore(eventDate, startDate)) {
+        return false;
+      }
+      if (endDate && isAfter(eventDate, endDate)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const activeFiltersCount = 
+    (filters.eventType !== "all" ? 1 : 0) +
+    (filters.dateRange !== "all" ? 1 : 0) +
+    (filters.location !== "all" ? 1 : 0);
+
+  const clearFilters = () => {
+    setFilters({ eventType: "all", dateRange: "all", location: "all" });
   };
 
   const selectedEvents = selectedDate 
-    ? events.filter((e) => isSameDay(parseISO(e.start_time), selectedDate))
+    ? filteredEvents.filter((e) => isSameDay(parseISO(e.start_time), selectedDate))
     : [];
 
   return (
@@ -94,10 +172,80 @@ const Events = () => {
             <p className="text-muted-foreground mt-1">Manage and track chapter events</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => toast.info("Filter options coming soon!")}>
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+            <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="relative">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filter
+                  {activeFiltersCount > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground">
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Filters</h4>
+                    {activeFiltersCount > 0 && (
+                      <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Event Type</Label>
+                    <Select value={filters.eventType} onValueChange={(value) => setFilters({ ...filters, eventType: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="meeting">Meeting</SelectItem>
+                        <SelectItem value="service">Service</SelectItem>
+                        <SelectItem value="social">Social</SelectItem>
+                        <SelectItem value="executive">Executive</SelectItem>
+                        <SelectItem value="committee">Committee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date Range</Label>
+                    <Select value={filters.dateRange} onValueChange={(value) => setFilters({ ...filters, dateRange: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="past">Past</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">Last Week</SelectItem>
+                        <SelectItem value="month">Last Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Select value={filters.location} onValueChange={(value) => setFilters({ ...filters, location: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        <SelectItem value="virtual">Virtual</SelectItem>
+                        <SelectItem value="in_person">In Person</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
             <CreateEventDialog>
               <Button variant="hero" size="sm">
                 <Plus className="w-4 h-4 mr-2" />

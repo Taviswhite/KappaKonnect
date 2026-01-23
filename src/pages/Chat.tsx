@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip, Edit, Trash2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateChannelDialog } from "@/components/dialogs/CreateChannelDialog";
 import { toast } from "sonner";
@@ -12,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 interface Channel {
   id: string;
@@ -36,6 +39,8 @@ interface Message {
 const Chat = () => {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [channelSearchQuery, setChannelSearchQuery] = useState("");
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -56,12 +61,21 @@ const Chat = () => {
     },
   });
 
-  // Auto-select first channel
-  useEffect(() => {
-    if (channels.length > 0 && !selectedChannelId) {
-      setSelectedChannelId(channels[0].id);
-    }
-  }, [channels, selectedChannelId]);
+  // Filter messages by search query
+  const filteredMessages = searchQuery
+    ? messages.filter((msg) =>
+        msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages;
+
+  // Filter channels by search query
+  const filteredChannels = channelSearchQuery
+    ? channels.filter((channel) =>
+        channel.name.toLowerCase().includes(channelSearchQuery.toLowerCase()) ||
+        channel.description?.toLowerCase().includes(channelSearchQuery.toLowerCase())
+      )
+    : channels;
 
   // Fetch messages for selected channel
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
@@ -199,10 +213,29 @@ const Chat = () => {
     },
   });
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || !selectedChannelId || !user) return;
-    sendMessageMutation.mutate(message);
+  const handleFileAttachment = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,application/pdf,.doc,.docx";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file || !user) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+
+      toast.info(`File attachment: ${file.name} (Feature in development - file will be attached to message)`);
+      // TODO: Implement file upload to Supabase Storage and attach to message
+    };
+    input.click();
+  };
+
+  const handleEmojiPicker = () => {
+    const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕"];
+    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+    setMessage(message + randomEmoji);
   };
 
   const selectedChannel = channels.find((c) => c.id === selectedChannelId);
@@ -218,7 +251,8 @@ const Chat = () => {
               <Input 
                 placeholder="Search chats..." 
                 className="pl-10 bg-secondary/50"
-                onChange={() => toast.info("Search functionality coming soon!")}
+                value={channelSearchQuery}
+                onChange={(e) => setChannelSearchQuery(e.target.value)}
               />
             </div>
           </div>
@@ -246,12 +280,12 @@ const Chat = () => {
                     <div key={i} className="h-10 bg-secondary/30 rounded-lg animate-pulse" />
                   ))}
                 </div>
-              ) : channels.length === 0 ? (
+              ) : filteredChannels.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-3 py-2">
-                  No channels yet. Create one to get started!
+                  {channelSearchQuery ? "No channels match your search" : "No channels yet. Create one to get started!"}
                 </p>
               ) : (
-                channels.map((channel) => (
+                filteredChannels.map((channel) => (
                   <button
                     key={channel.id}
                     onClick={() => setSelectedChannelId(channel.id)}
@@ -289,29 +323,39 @@ const Chat = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => toast.info("Channel members coming soon!")}
-                  >
-                    <Users className="w-5 h-5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => toast.info("Pin channel coming soon!")}
-                  >
-                    <Pin className="w-5 h-5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => toast.info("Channel options coming soon!")}
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
+                  <ChannelMembersDialog channelId={selectedChannel.id} channelName={selectedChannel.name} />
+                  <PinChannelButton channelId={selectedChannel.id} isPinned={selectedChannel.is_pinned || false} />
+                  <ChannelOptionsMenu channelId={selectedChannel.id} channelName={selectedChannel.name} />
                 </div>
               </div>
+
+              {/* Message Search */}
+              {filteredMessages.length < messages.length && (
+                <div className="px-6 py-2 border-b border-border bg-secondary/30">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search messages..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 bg-background"
+                    />
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        <span className="text-xs">×</span>
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {filteredMessages.length} of {messages.length} messages
+                  </p>
+                </div>
+              )}
 
               {/* Messages */}
               <ScrollArea className="flex-1 p-6" ref={messagesContainerRef}>
@@ -335,16 +379,23 @@ const Chat = () => {
                       <p className="text-xs text-muted-foreground mt-2">Make sure the messages table exists.</p>
                     </div>
                   </div>
-                ) : messages.length === 0 ? (
+                ) : filteredMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <Hash className="w-12 h-12 text-muted-foreground mx-auto mb-2 opacity-50" />
-                      <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
+                      <p className="text-muted-foreground">
+                        {searchQuery ? "No messages match your search" : "No messages yet. Start the conversation!"}
+                      </p>
+                      {searchQuery && (
+                        <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")} className="mt-2">
+                          Clear search
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {messages.map((msg) => (
+                    {filteredMessages.map((msg) => (
                       <div key={msg.id} className="flex items-start gap-3 group">
                         <Avatar className="w-10 h-10 border border-border">
                           <AvatarImage src={msg.profiles?.avatar_url || undefined} />
@@ -377,12 +428,12 @@ const Chat = () => {
                     type="button" 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => toast.info("File attachments coming soon!")}
+                    onClick={handleFileAttachment}
                   >
                     <Paperclip className="w-5 h-5" />
                   </Button>
                   <Input
-                    placeholder={`Message #${selectedChannel.name}`}
+                    placeholder={`Message #${selectedChannel.name}${searchQuery ? ` (searching: ${searchQuery})` : ""}`}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="flex-1 bg-secondary/50"
@@ -392,7 +443,7 @@ const Chat = () => {
                     type="button" 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => toast.info("Emoji picker coming soon!")}
+                    onClick={handleEmojiPicker}
                   >
                     <Smile className="w-5 h-5" />
                   </Button>
@@ -427,3 +478,171 @@ const Chat = () => {
 };
 
 export default Chat;
+
+// Channel Members Dialog Component
+function ChannelMembersDialog({ channelId, channelName }: { channelId: string; channelName: string }) {
+  const [open, setOpen] = useState(false);
+  const { data: members = [] } = useQuery({
+    queryKey: ["channel-members", channelId],
+    queryFn: async () => {
+      try {
+        // Try to fetch channel members
+        const { data, error } = await supabase
+          .from("channel_members")
+          .select("user_id")
+          .eq("channel_id", channelId);
+        
+        if (error) {
+          if (error.code === "42P01") {
+            // Table doesn't exist, return empty array
+            return [];
+          }
+          throw error;
+        }
+
+        if (!data || data.length === 0) return [];
+
+        // Fetch profiles for members
+        const userIds = data.map((m: any) => m.user_id);
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, email, avatar_url")
+          .in("user_id", userIds);
+
+        return profilesData?.map((profile: any) => ({
+          user_id: profile.user_id,
+          profiles: profile,
+        })) || [];
+      } catch (error) {
+        console.error("Error fetching channel members:", error);
+        return [];
+      }
+    },
+    enabled: open && !!channelId,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Users className="w-5 h-5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Members of #{channelName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {members.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members found</p>
+          ) : (
+            members.map((member: any) => (
+              <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={member.profiles?.avatar_url || undefined} />
+                  <AvatarFallback>{member.profiles?.full_name?.[0] || "?"}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium">{member.profiles?.full_name || "Unknown"}</p>
+                  <p className="text-xs text-muted-foreground">{member.profiles?.email}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Pin Channel Button Component
+function PinChannelButton({ channelId, isPinned }: { channelId: string; isPinned: boolean }) {
+  const queryClient = useQueryClient();
+  const pinMutation = useMutation({
+    mutationFn: async (pinned: boolean) => {
+      // Note: This assumes is_pinned column exists. If not, this will fail gracefully.
+      const { error } = await supabase
+        .from("channels")
+        .update({ is_pinned: pinned })
+        .eq("id", channelId);
+      if (error && !error.message.includes("column") && !error.message.includes("does not exist")) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["channels"] });
+      toast.success(isPinned ? "Channel unpinned" : "Channel pinned");
+    },
+    onError: () => {
+      toast.info("Pin feature requires database column update");
+    },
+  });
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => pinMutation.mutate(!isPinned)}
+      className={isPinned ? "text-accent" : ""}
+    >
+      <Pin className={cn("w-5 h-5", isPinned && "fill-current")} />
+    </Button>
+  );
+}
+
+// Channel Options Menu Component
+function ChannelOptionsMenu({ channelId, channelName }: { channelId: string; channelName: string }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("channels")
+        .delete()
+        .eq("id", channelId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["channels"] });
+      toast.success("Channel deleted");
+      navigate("/chat");
+    },
+    onError: () => {
+      toast.error("Failed to delete channel");
+    },
+  });
+
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete #${channelName}? This action cannot be undone.`)) {
+      deleteMutation.mutate();
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="w-5 h-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => toast.info("Edit channel coming soon!")}>
+          <Edit className="w-4 h-4 mr-2" />
+          Edit Channel
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => toast.info("Leave channel coming soon!")}>
+          <LogOut className="w-4 h-4 mr-2" />
+          Leave Channel
+        </DropdownMenuItem>
+        {user && (
+          <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Channel
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

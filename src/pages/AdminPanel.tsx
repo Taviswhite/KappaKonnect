@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
@@ -163,7 +164,73 @@ const AdminPanel = () => {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
     queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
+    queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
     toast.success("Data refreshed");
+  };
+
+  const handleExport = async (type: "users" | "attendance") => {
+    try {
+      let csvContent = "";
+      let filename = "";
+
+      if (type === "users") {
+        // Export users data
+        const headers = ["Name", "Email", "Phone", "Role", "Committee", "Created At"];
+        csvContent = headers.join(",") + "\n";
+
+        filteredMembers.forEach((member) => {
+          const role = getRoleForUser(member.user_id);
+          const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+          const row = [
+            `"${member.full_name || ""}"`,
+            `"${member.email || ""}"`,
+            `"${member.phone || ""}"`,
+            `"${roleLabel}"`,
+            `"${member.committee || ""}"`,
+            `"${member.created_at ? format(new Date(member.created_at), "yyyy-MM-dd HH:mm:ss") : ""}"`,
+          ];
+          csvContent += row.join(",") + "\n";
+        });
+
+        filename = `users_export_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      } else {
+        // Export attendance data
+        const headers = ["Member Name", "Member Email", "Event Title", "Event Date", "Location", "Checked In At"];
+        csvContent = headers.join(",") + "\n";
+
+        attendanceRecords.forEach((record: any) => {
+          const profile = record.profiles;
+          const event = record.events;
+          const row = [
+            `"${profile?.full_name || "Unknown"}"`,
+            `"${profile?.email || ""}"`,
+            `"${event?.title || "Unknown Event"}"`,
+            `"${event?.start_time ? format(parseISO(event.start_time), "yyyy-MM-dd HH:mm:ss") : ""}"`,
+            `"${event?.location || ""}"`,
+            `"${format(parseISO(record.checked_in_at), "yyyy-MM-dd HH:mm:ss")}"`,
+          ];
+          csvContent += row.join(",") + "\n";
+        });
+
+        filename = `attendance_export_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      }
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Exported ${type === "users" ? "users" : "attendance"} data successfully!`);
+    } catch (error) {
+      toast.error(`Failed to export ${type === "users" ? "users" : "attendance"} data`);
+      console.error("Export error:", error);
+    }
   };
 
   if (!isAdmin) {
@@ -205,10 +272,22 @@ const AdminPanel = () => {
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={() => toast.info("Export feature coming soon!")}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("users")}>
+                  Export Users
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("attendance")}>
+                  Export Attendance
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

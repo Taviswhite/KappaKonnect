@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, Circle, Clock, Plus, Filter, Search, MoreVertical, Calendar, ListTodo } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CheckCircle2, Circle, Clock, Plus, Filter, Search, MoreVertical, Calendar, ListTodo, Edit, Trash2, Copy, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { CreateTaskDialog } from "@/components/dialogs/CreateTaskDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const columns = [
   { id: "todo", title: "To Do", color: "border-muted" },
@@ -27,7 +32,14 @@ const priorityColors = {
 
 const Tasks = () => {
   const [search, setSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: "all",
+    priority: "all",
+    assignee: "all",
+  });
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch tasks from database
   const { data: tasks = [], isLoading } = useQuery({
@@ -43,11 +55,39 @@ const Tasks = () => {
     },
   });
 
-  const getTasksByStatus = (status: string) =>
-    tasks.filter((t) => 
-      (t.status || "todo") === status && 
-      t.title.toLowerCase().includes(search.toLowerCase())
-    );
+  // Fetch profiles for assignee filter
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-for-filter"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .order("full_name");
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const getTasksByStatus = (status: string) => {
+    return tasks.filter((t) => {
+      const matchesStatus = filters.status === "all" || (t.status || "todo") === status;
+      const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
+        t.description?.toLowerCase().includes(search.toLowerCase());
+      const matchesPriority = filters.priority === "all" || (t.priority || "medium") === filters.priority;
+      const matchesAssignee = filters.assignee === "all" || t.assigned_to === filters.assignee;
+      
+      return matchesStatus && matchesSearch && matchesPriority && matchesAssignee && (t.status || "todo") === status;
+    });
+  };
+
+  const activeFiltersCount = 
+    (filters.status !== "all" ? 1 : 0) +
+    (filters.priority !== "all" ? 1 : 0) +
+    (filters.assignee !== "all" ? 1 : 0);
+
+  const clearFilters = () => {
+    setFilters({ status: "all", priority: "all", assignee: "all" });
+  };
 
   return (
     <AppLayout>
@@ -76,10 +116,79 @@ const Tasks = () => {
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={() => toast.info("Filter options coming soon!")}>
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="relative">
+                <Filter className="w-4 h-4 mr-2" />
+                Filter
+                {activeFiltersCount > 0 && (
+                  <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Filters</h4>
+                  {activeFiltersCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
+                      <X className="w-3 h-3 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="todo">To Do</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select value={filters.priority} onValueChange={(value) => setFilters({ ...filters, priority: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Assignee</Label>
+                  <Select value={filters.assignee} onValueChange={(value) => setFilters({ ...filters, assignee: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.user_id} value={profile.user_id}>
+                          {profile.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Kanban Board */}
@@ -157,6 +266,7 @@ const Tasks = () => {
 // Task Card Component with Status Cycling
 function TaskCard({ task, onStatusChange }: { task: Database["public"]["Tables"]["tasks"]["Row"]; onStatusChange: () => void }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const statusCycle: Record<string, string> = {
     todo: "in_progress",
@@ -183,10 +293,68 @@ function TaskCard({ task, onStatusChange }: { task: Database["public"]["Tables"]
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", task.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["open-tasks-count"] });
+      toast.success("Task deleted");
+    },
+    onError: () => {
+      toast.error("Failed to delete task");
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          title: `${task.title} (Copy)`,
+          description: task.description,
+          status: "todo",
+          priority: task.priority,
+          assigned_to: task.assigned_to,
+          committee: task.committee,
+          due_date: task.due_date,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-tasks"] });
+      toast.success("Task duplicated");
+    },
+    onError: () => {
+      toast.error("Failed to duplicate task");
+    },
+  });
+
   const handleClick = () => {
     const currentStatus = task.status || "todo";
     const newStatus = statusCycle[currentStatus] || "todo";
     statusMutation.mutate(newStatus);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      deleteMutation.mutate();
+    }
+  };
+
+  const handleDuplicate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    duplicateMutation.mutate();
   };
 
   const priority = task.priority || "medium";
@@ -209,17 +377,32 @@ function TaskCard({ task, onStatusChange }: { task: Database["public"]["Tables"]
             "w-4 h-4",
             task.status === "completed" ? "text-green-500" : task.status === "in_progress" ? "text-accent" : "text-muted-foreground"
           )} />
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              toast.info("Task options coming soon!");
-            }}
-          >
-            <MoreVertical className="w-4 h-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast.info("Edit task coming soon!"); }}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

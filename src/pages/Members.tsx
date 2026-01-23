@@ -3,6 +3,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Table, 
@@ -12,7 +15,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield } from "lucide-react";
+import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +34,11 @@ const roleColors: Record<string, string> = {
 const Members = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    role: "all",
+    committee: "all",
+  });
   const { hasRole } = useAuth();
 
   // Only admins can edit roles
@@ -84,12 +92,29 @@ const Members = () => {
     return role?.role || "member";
   };
 
-  const filteredMembers = profiles.filter(
-    (m) =>
+  // Get unique committees
+  const committees = [...new Set(profiles.map(p => p.committee).filter(Boolean))];
+
+  const filteredMembers = profiles.filter((m) => {
+    const matchesSearch = 
       m.full_name.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase()) ||
-      (m.committee?.toLowerCase() || "").includes(search.toLowerCase())
-  );
+      (m.committee?.toLowerCase() || "").includes(search.toLowerCase());
+    
+    const role = getRoleForUser(m.user_id);
+    const matchesRole = filters.role === "all" || role === filters.role;
+    const matchesCommittee = filters.committee === "all" || m.committee === filters.committee;
+    
+    return matchesSearch && matchesRole && matchesCommittee;
+  });
+
+  const activeFiltersCount = 
+    (filters.role !== "all" ? 1 : 0) +
+    (filters.committee !== "all" ? 1 : 0);
+
+  const clearFilters = () => {
+    setFilters({ role: "all", committee: "all" });
+  };
 
   const totalMembers = profiles.length;
   
@@ -124,10 +149,66 @@ const Members = () => {
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={() => toast.info("Filter options coming soon!")}>
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
+                 <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                   <PopoverTrigger asChild>
+                     <Button variant="outline" size="sm" className="relative">
+                       <Filter className="w-4 h-4 mr-2" />
+                       Filter
+                       {activeFiltersCount > 0 && (
+                         <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground">
+                           {activeFiltersCount}
+                         </Badge>
+                       )}
+                     </Button>
+                   </PopoverTrigger>
+                   <PopoverContent className="w-80" align="end">
+                     <div className="space-y-4">
+                       <div className="flex items-center justify-between">
+                         <h4 className="font-semibold">Filters</h4>
+                         {activeFiltersCount > 0 && (
+                           <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
+                             <X className="w-3 h-3 mr-1" />
+                             Clear
+                           </Button>
+                         )}
+                       </div>
+
+                       <div className="space-y-2">
+                         <Label>Role</Label>
+                         <Select value={filters.role} onValueChange={(value) => setFilters({ ...filters, role: value })}>
+                           <SelectTrigger>
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="all">All Roles</SelectItem>
+                             <SelectItem value="admin">Admin</SelectItem>
+                             <SelectItem value="e_board">E-Board</SelectItem>
+                             <SelectItem value="committee_chairman">Committee Chairman</SelectItem>
+                             <SelectItem value="member">Member</SelectItem>
+                             <SelectItem value="alumni">Alumni</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+
+                       <div className="space-y-2">
+                         <Label>Committee</Label>
+                         <Select value={filters.committee} onValueChange={(value) => setFilters({ ...filters, committee: value })}>
+                           <SelectTrigger>
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="all">All Committees</SelectItem>
+                             {committees.map((committee) => (
+                               <SelectItem key={committee} value={committee || ""}>
+                                 {committee}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     </div>
+                   </PopoverContent>
+                 </Popover>
           <div className="flex items-center gap-1 border border-border rounded-lg p-1">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}

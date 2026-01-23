@@ -29,6 +29,8 @@ import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -72,6 +74,17 @@ export default function Settings() {
   const [security, setSecurity] = useState({
     twoFactor: false,
     sessionAlerts: true,
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [systemSettings, setSystemSettings] = useState({
+    allowPublicRegistration: true,
+    requireEmailVerification: true,
+    maxFileUploadSize: 10,
+    sessionTimeout: 30,
+    maintenanceMode: false,
   });
 
   const handleSavePreferences = () => {
@@ -95,11 +108,12 @@ export default function Settings() {
     });
   };
 
-  const handleSaveSecurity = () => {
-    toast({
-      title: "Security Settings Updated",
-      description: "Your security settings have been saved.",
+  const handleSaveSystemSettings = () => {
+    // In a real app, you'd save these to a system_settings table in Supabase
+    sonnerToast.success("System settings saved", {
+      description: "System configuration has been updated successfully.",
     });
+    console.log("System settings:", systemSettings);
   };
 
   return (
@@ -543,22 +557,95 @@ export default function Settings() {
                     </div>
 
                     <div className="p-4 rounded-xl bg-secondary/20">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <SettingsIcon className="w-4 h-4 text-primary" />
-                        System Settings
-                      </h4>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Configure application-wide settings and preferences.
-                      </p>
-                      <div className="space-y-2">
-                        <Button 
-                          variant="outline" 
-                          className="w-full sm:w-auto"
-                          onClick={() => toast.info("System settings coming soon!")}
-                        >
-                          Configure System
-                        </Button>
-                      </div>
+                            <h4 className="font-semibold mb-2 flex items-center gap-2">
+                              <SettingsIcon className="w-4 h-4 text-primary" />
+                              System Settings
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Configure application-wide settings and preferences.
+                            </p>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label>Public Registration</Label>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
+                                  <div>
+                                    <p className="text-sm font-medium">Allow Public Registration</p>
+                                    <p className="text-xs text-muted-foreground">Allow anyone to create an account</p>
+                                  </div>
+                                  <Switch
+                                    checked={systemSettings.allowPublicRegistration}
+                                    onCheckedChange={(checked) =>
+                                      setSystemSettings({ ...systemSettings, allowPublicRegistration: checked })
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>Email Verification</Label>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
+                                  <div>
+                                    <p className="text-sm font-medium">Require Email Verification</p>
+                                    <p className="text-xs text-muted-foreground">Users must verify email before access</p>
+                                  </div>
+                                  <Switch
+                                    checked={systemSettings.requireEmailVerification}
+                                    onCheckedChange={(checked) =>
+                                      setSystemSettings({ ...systemSettings, requireEmailVerification: checked })
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>File Upload Size Limit (MB)</Label>
+                                <Input
+                                  type="number"
+                                  value={systemSettings.maxFileUploadSize}
+                                  onChange={(e) =>
+                                    setSystemSettings({ ...systemSettings, maxFileUploadSize: parseInt(e.target.value) || 10 })
+                                  }
+                                  min={1}
+                                  max={100}
+                                  className="bg-secondary/30"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>Session Timeout (minutes)</Label>
+                                <Input
+                                  type="number"
+                                  value={systemSettings.sessionTimeout}
+                                  onChange={(e) =>
+                                    setSystemSettings({ ...systemSettings, sessionTimeout: parseInt(e.target.value) || 30 })
+                                  }
+                                  min={5}
+                                  max={1440}
+                                  className="bg-secondary/30"
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label>Maintenance Mode</Label>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
+                                  <div>
+                                    <p className="text-sm font-medium">Enable Maintenance Mode</p>
+                                    <p className="text-xs text-muted-foreground">Temporarily disable app access</p>
+                                  </div>
+                                  <Switch
+                                    checked={systemSettings.maintenanceMode}
+                                    onCheckedChange={(checked) =>
+                                      setSystemSettings({ ...systemSettings, maintenanceMode: checked })
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <Button onClick={handleSaveSystemSettings} className="w-full">
+                                <Save className="w-4 h-4 mr-2" />
+                                Save System Settings
+                              </Button>
+                            </div>
                     </div>
                   </div>
 

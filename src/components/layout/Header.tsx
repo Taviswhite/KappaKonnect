@@ -1,6 +1,7 @@
 import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +18,9 @@ import { MobileMenuTrigger } from "./Sidebar";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Trash2, Calendar, MessageSquare, CheckSquare, Users, Megaphone } from "lucide-react";
+import { Check, Trash2, Calendar, MessageSquare, CheckSquare, Users, Megaphone, FileText, Hash } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -27,6 +29,8 @@ interface HeaderProps {
 export function Header({ onMobileMenuToggle }: HeaderProps) {
   const { profile, roles, signOut, user } = useAuth();
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch unread notifications count
   const { data: unreadCount = 0 } = useQuery({
@@ -95,8 +99,33 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
       .slice(0, 2);
   };
 
-  const primaryRole = roles[0]?.role || "member";
-  const roleLabel = primaryRole.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  // Global search
+  const { data: searchResults, isLoading: searchLoading } = useQuery({
+    queryKey: ["global-search", searchQuery],
+    queryFn: async () => {
+      if (!searchQuery.trim() || searchQuery.length < 2) return { members: [], events: [], tasks: [], documents: [] };
+
+      const [membersResult, eventsResult, tasksResult, documentsResult] = await Promise.all([
+        supabase.from("profiles").select("user_id, full_name, email").ilike("full_name", `%${searchQuery}%`).limit(5),
+        supabase.from("events").select("id, title, start_time").ilike("title", `%${searchQuery}%`).limit(5),
+        supabase.from("tasks").select("id, title, status").ilike("title", `%${searchQuery}%`).limit(5),
+        supabase.from("documents").select("id, name, file_type").ilike("name", `%${searchQuery}%`).limit(5),
+      ]);
+
+      return {
+        members: membersResult.data || [],
+        events: eventsResult.data || [],
+        tasks: tasksResult.data || [],
+        documents: documentsResult.data || [],
+      };
+    },
+    enabled: searchOpen && searchQuery.length >= 2,
+  });
+
+  const totalResults = (searchResults?.members.length || 0) + 
+    (searchResults?.events.length || 0) + 
+    (searchResults?.tasks.length || 0) + 
+    (searchResults?.documents.length || 0);
 
   return (
     <header className="sticky top-0 z-30 h-14 sm:h-16 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -120,10 +149,120 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             variant="ghost" 
             size="icon" 
             className="sm:hidden"
-            onClick={() => toast.info("Search functionality coming soon!")}
+            onClick={() => setSearchOpen(true)}
           >
             <Search className="w-5 h-5" />
           </Button>
+
+          {/* Global Search Dialog */}
+          <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Search</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Search members, events, tasks, documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                  autoFocus
+                />
+                {searchQuery.length >= 2 && (
+                  <div className="max-h-[400px] overflow-y-auto space-y-4">
+                    {searchLoading ? (
+                      <div className="text-center py-8 text-muted-foreground">Searching...</div>
+                    ) : totalResults === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">No results found</div>
+                    ) : (
+                      <>
+                        {searchResults?.members.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              Members ({searchResults.members.length})
+                            </h4>
+                            <div className="space-y-1">
+                              {searchResults.members.map((member: any) => (
+                                <Button
+                                  key={member.user_id}
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() => handleSearchResultClick("member", member.user_id)}
+                                >
+                                  {member.full_name} ({member.email})
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults?.events.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              Events ({searchResults.events.length})
+                            </h4>
+                            <div className="space-y-1">
+                              {searchResults.events.map((event: any) => (
+                                <Button
+                                  key={event.id}
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() => handleSearchResultClick("event", event.id)}
+                                >
+                                  {event.title}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults?.tasks.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                              <CheckSquare className="w-4 h-4" />
+                              Tasks ({searchResults.tasks.length})
+                            </h4>
+                            <div className="space-y-1">
+                              {searchResults.tasks.map((task: any) => (
+                                <Button
+                                  key={task.id}
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() => handleSearchResultClick("task", task.id)}
+                                >
+                                  {task.title}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {searchResults?.documents.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              Documents ({searchResults.documents.length})
+                            </h4>
+                            <div className="space-y-1">
+                              {searchResults.documents.map((doc: any) => (
+                                <Button
+                                  key={doc.id}
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() => handleSearchResultClick("document", doc.id)}
+                                >
+                                  {doc.name} ({doc.file_type})
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Notifications */}
           <DropdownMenu>

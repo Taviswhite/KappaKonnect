@@ -3,13 +3,17 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen, Plus, Globe, Lock, Users } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen, Plus, Globe, Lock, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateDocumentDialog } from "@/components/dialogs/CreateDocumentDialog";
 import { CreateFolderDialog } from "@/components/dialogs/CreateFolderDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, subDays, subMonths, subWeeks } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 
 const statusConfig = {
@@ -20,6 +24,12 @@ const statusConfig = {
 
 const Documents = () => {
   const [search, setSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    fileType: "all",
+    visibility: "all",
+    dateRange: "all",
+  });
   const { user } = useAuth();
 
   // Fetch documents from database (RLS will filter by visibility automatically)
@@ -41,11 +51,64 @@ const Documents = () => {
     },
   });
 
-  // Filter documents by search
-  const filteredDocuments = documents.filter((doc) =>
-    doc.name?.toLowerCase().includes(search.toLowerCase()) ||
-    doc.file_type?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter documents by search and filters
+  const filteredDocuments = documents.filter((doc) => {
+    // Search filter
+    const matchesSearch = 
+      doc.name?.toLowerCase().includes(search.toLowerCase()) ||
+      doc.file_type?.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    // File type filter
+    if (filters.fileType !== "all" && doc.file_type !== filters.fileType) {
+      return false;
+    }
+
+    // Visibility filter
+    if (filters.visibility !== "all" && doc.visibility !== filters.visibility) {
+      return false;
+    }
+
+    // Date range filter
+    if (filters.dateRange !== "all" && doc.updated_at) {
+      const docDate = new Date(doc.updated_at);
+      const now = new Date();
+      let cutoffDate: Date;
+
+      switch (filters.dateRange) {
+        case "today":
+          cutoffDate = subDays(now, 1);
+          break;
+        case "week":
+          cutoffDate = subWeeks(now, 1);
+          break;
+        case "month":
+          cutoffDate = subMonths(now, 1);
+          break;
+        case "year":
+          cutoffDate = subMonths(now, 12);
+          break;
+        default:
+          return true;
+      }
+
+      if (docDate < cutoffDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const activeFiltersCount = 
+    (filters.fileType !== "all" ? 1 : 0) +
+    (filters.visibility !== "all" ? 1 : 0) +
+    (filters.dateRange !== "all" ? 1 : 0);
+
+  const clearFilters = () => {
+    setFilters({ fileType: "all", visibility: "all", dateRange: "all" });
+  };
 
   return (
     <AppLayout>
@@ -82,14 +145,94 @@ const Documents = () => {
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => toast.info("Filter options coming soon!")}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="relative">
+                <Filter className="w-4 h-4 mr-2" />
+                Filter
+                {activeFiltersCount > 0 && (
+                  <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Filters</h4>
+                  {activeFiltersCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-7 text-xs"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>File Type</Label>
+                  <Select
+                    value={filters.fileType}
+                    onValueChange={(value) => setFilters({ ...filters, fileType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="PDF">PDF</SelectItem>
+                      <SelectItem value="DOC">DOC</SelectItem>
+                      <SelectItem value="DOCX">DOCX</SelectItem>
+                      <SelectItem value="TXT">TXT</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Visibility</Label>
+                  <Select
+                    value={filters.visibility}
+                    onValueChange={(value) => setFilters({ ...filters, visibility: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Visibility</SelectItem>
+                      <SelectItem value="public">Public</SelectItem>
+                      <SelectItem value="private">Private</SelectItem>
+                      <SelectItem value="shared">Shared</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Modified Date</Label>
+                  <Select
+                    value={filters.dateRange}
+                    onValueChange={(value) => setFilters({ ...filters, dateRange: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">Last Week</SelectItem>
+                      <SelectItem value="month">Last Month</SelectItem>
+                      <SelectItem value="year">Last Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {isLoading ? (
