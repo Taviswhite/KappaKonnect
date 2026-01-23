@@ -87,7 +87,24 @@ export function checkURLForThreats(): boolean {
   if (typeof window === 'undefined') {
     return false; // SSR check
   }
-  
+
+  const currentUrl = new URL(window.location.href);
+
+  // Allow known-safe QR check-in URLs for Attendance page
+  // Example: /attendance?event=<uuid>&checkin=true
+  if (currentUrl.pathname === '/attendance') {
+    const params = currentUrl.searchParams;
+    const keys = Array.from(params.keys());
+    const isQrCheckin =
+      params.has('event') &&
+      params.has('checkin') &&
+      keys.every((k) => k === 'event' || k === 'checkin');
+
+    if (isQrCheckin) {
+      return false;
+    }
+  }
+
   const hasThreat = detectThreats();
   
   if (hasThreat) {
