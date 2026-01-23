@@ -263,7 +263,7 @@ SELECT
   'Confirm reservation and A/V setup.',
   'in_progress',
   eboard.id,
-  member1.id,
+  NULL,
   NOW() + INTERVAL '2 days'
 FROM auth.users eboard
 CROSS JOIN auth.users member1
@@ -278,7 +278,7 @@ SELECT
   'Create marketing materials for upcoming events.',
   'todo',
   chair.id,
-  member2.id,
+  NULL,
   NOW() + INTERVAL '5 days'
 FROM auth.users chair
 CROSS JOIN auth.users member2
