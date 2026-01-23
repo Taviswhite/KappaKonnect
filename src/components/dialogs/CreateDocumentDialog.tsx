@@ -58,16 +58,46 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       let fileUrl = null;
       let fileSize = null;
 
-      // If file is uploaded, you would upload to Supabase Storage here
-      // For now, we'll just save the document metadata
+      // Upload file to Supabase Storage if provided
       if (file) {
         fileSize = `${file.size}`;
-        // TODO: Upload to Supabase Storage and get URL
-        // const { data: uploadData, error: uploadError } = await supabase.storage
-        //   .from('documents')
-        //   .upload(`${user.id}/${file.name}`, file);
-        // if (uploadError) throw uploadError;
-        // fileUrl = uploadData.path;
+        
+        // Create a unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          // If bucket doesn't exist, create it or use public URL
+          console.error("Storage upload error:", uploadError);
+          
+          // Try to get public URL if bucket exists but upload failed
+          const { data: publicUrlData } = supabase.storage
+            .from('documents')
+            .getPublicUrl(filePath);
+          
+          if (publicUrlData?.publicUrl) {
+            fileUrl = publicUrlData.publicUrl;
+          } else {
+            // If storage isn't set up, save document without file URL
+            toast.warning("File storage not configured. Document saved without file attachment.");
+          }
+        } else {
+          // Get public URL for the uploaded file
+          const { data: publicUrlData } = supabase.storage
+            .from('documents')
+            .getPublicUrl(uploadData.path);
+          
+          fileUrl = publicUrlData.publicUrl;
+        }
       }
 
       const { error } = await supabase
@@ -96,7 +126,8 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       setOpen(false);
     } catch (error) {
       console.error("Error creating document:", error);
-      toast.error("Failed to create document. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create document. Please try again.";
+      toast.error(errorMessage);
     }
   };
 

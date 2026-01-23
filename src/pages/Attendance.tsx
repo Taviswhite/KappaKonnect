@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import { useSearchParams } from "react-router-dom";
 
 const Attendance = () => {
   const [showQR, setShowQR] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
+
+  // Check for QR code check-in parameter
+  const eventIdFromQR = searchParams.get("event");
+  const checkinFromQR = searchParams.get("checkin") === "true";
 
   // Fetch upcoming events
   const { data: upcomingEvents = [] } = useQuery({
@@ -31,7 +38,23 @@ const Attendance = () => {
     },
   });
 
-  const currentEvent = upcomingEvents[0];
+  // If QR code has event ID, fetch that specific event
+  const { data: qrEvent } = useQuery({
+    queryKey: ["event-by-id", eventIdFromQR],
+    queryFn: async () => {
+      if (!eventIdFromQR) return null;
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", eventIdFromQR)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!eventIdFromQR,
+  });
+
+  const currentEvent = qrEvent || upcomingEvents[0];
 
   // Check if current user is checked in
   const { data: userAttendance } = useQuery({
@@ -92,6 +115,19 @@ const Attendance = () => {
   const isCheckedIn = !!userAttendance;
   const attendanceRate = currentEvent ? Math.round((attendanceCount / 50) * 100) : 0;
 
+  // Auto-check-in if coming from QR code
+  useEffect(() => {
+    if (checkinFromQR && currentEvent && user && !isCheckedIn && !checkInMutation.isPending) {
+      // Small delay to ensure user sees the page
+      const timer = setTimeout(() => {
+        checkInMutation.mutate();
+        // Remove query params after check-in
+        setSearchParams({});
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [checkinFromQR, currentEvent, user, isCheckedIn, checkInMutation, setSearchParams]);
+
   if (!currentEvent) {
     return (
       <AppLayout>
@@ -138,27 +174,26 @@ const Attendance = () => {
 
             {showQR ? (
               <div className="relative">
-                <div className="w-64 h-64 bg-foreground rounded-2xl p-4 glow-primary">
-                  <div className="w-full h-full bg-background rounded-lg flex items-center justify-center">
-                    {/* QR Code Pattern Simulation */}
-                    <div className="grid grid-cols-8 gap-1 p-4">
-                      {Array.from({ length: 64 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "w-4 h-4 rounded-sm",
-                            Math.random() > 0.5 ? "bg-foreground" : "bg-transparent"
-                          )}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                <div className="w-64 h-64 bg-background rounded-2xl p-4 glow-primary border-2 border-primary/30 flex items-center justify-center">
+                  {currentEvent && (
+                    <QRCodeSVG
+                      value={`${window.location.origin}/attendance?event=${currentEvent.id}&checkin=true`}
+                      size={240}
+                      level="H"
+                      includeMargin={false}
+                      fgColor="currentColor"
+                      className="text-foreground"
+                    />
+                  )}
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="absolute -bottom-12 left-1/2 -translate-x-1/2"
-                  onClick={() => setShowQR(false)}
+                  onClick={() => {
+                    setShowQR(false);
+                    setTimeout(() => setShowQR(true), 100);
+                  }}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Regenerate

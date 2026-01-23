@@ -39,7 +39,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
@@ -87,13 +87,46 @@ const AdminPanel = () => {
     },
   });
 
-  // Fetch auth users to check email confirmation status
-  const { data: authUsers = [] } = useQuery({
-    queryKey: ["auth-users"],
+  // Fetch attendance records with user and event details
+  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ["attendance-records"],
     queryFn: async () => {
-      // Note: This requires admin access to auth.users table
-      // For now, we'll use profiles and assume confirmed if profile exists
-      return profiles.map(p => ({ id: p.user_id, email_confirmed: true }));
+      // Fetch attendance records
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from("attendance")
+        .select("*")
+        .order("checked_in_at", { ascending: false })
+        .limit(100);
+      
+      if (attendanceError) throw attendanceError;
+      if (!attendanceData || attendanceData.length === 0) return [];
+
+      // Get unique user IDs and event IDs
+      const userIds = [...new Set(attendanceData.map(a => a.user_id))];
+      const eventIds = [...new Set(attendanceData.map(a => a.event_id))];
+
+      // Fetch profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, user_id, full_name, email")
+        .in("user_id", userIds);
+      
+      if (profilesError) throw profilesError;
+
+      // Fetch events
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("events")
+        .select("id, title, start_time, location")
+        .in("id", eventIds);
+      
+      if (eventsError) throw eventsError;
+
+      // Join the data
+      return attendanceData.map(record => ({
+        ...record,
+        profiles: profilesData?.find(p => p.user_id === record.user_id) || null,
+        events: eventsData?.find(e => e.id === record.event_id) || null,
+      }));
     },
     enabled: isAdmin,
   });
@@ -354,6 +387,103 @@ const AdminPanel = () => {
                                 <Shield className="w-4 h-4" />
                               </Button>
                             </EditUserRoleDialog>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Attendance Tracking */}
+        <Card className="glass-card border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Event Attendance Tracking
+            </CardTitle>
+            <CardDescription>
+              View who checked in for events and when they checked in.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {attendanceLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : attendanceRecords.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircle2 className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-xl font-display font-bold text-foreground mb-2">
+                  No Attendance Records
+                </h3>
+                <p className="text-muted-foreground">
+                  Attendance records will appear here when members check in to events.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Member</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Checked In</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceRecords.map((record: any) => {
+                      const profile = record.profiles;
+                      const event = record.events;
+                      return (
+                        <TableRow key={record.id} className="hover:bg-secondary/30">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="w-8 h-8 border border-primary">
+                                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                  {profile?.full_name?.split(" ").map((n: string) => n[0]).join("") || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-foreground text-sm">
+                                  {profile?.full_name || "Unknown User"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {profile?.email || ""}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-foreground text-sm">
+                                {event?.title || "Unknown Event"}
+                              </p>
+                              {event?.start_time && (
+                                <p className="text-xs text-muted-foreground">
+                                  {format(parseISO(event.start_time), "MMM d, yyyy 'at' h:mm a")}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {event?.location || "-"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
+                              <span className="text-sm text-muted-foreground">
+                                {format(parseISO(record.checked_in_at), "MMM d, h:mm a")}
+                              </span>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
