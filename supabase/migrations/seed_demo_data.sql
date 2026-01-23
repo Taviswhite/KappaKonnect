@@ -40,10 +40,10 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- Insert profile
+  -- Insert profile (handle conflicts on both id and user_id)
   INSERT INTO public.profiles (id, user_id, full_name, email, phone, graduation_year, committee, avatar_url)
   VALUES (v_user_id, v_user_id, p_full_name, p_email, p_phone, p_graduation_year, p_committee, NULL)
-  ON CONFLICT (id) DO UPDATE SET
+  ON CONFLICT (user_id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     email = EXCLUDED.email,
     phone = EXCLUDED.phone,
