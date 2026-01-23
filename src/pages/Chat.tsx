@@ -70,7 +70,7 @@ const Chat = () => {
     : channels;
 
   // Fetch messages for selected channel
-  const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
+  const { data: messagesQueryData = [], isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ["messages", selectedChannelId],
     queryFn: async () => {
       if (!selectedChannelId) return [];
@@ -115,9 +115,12 @@ const Chat = () => {
     enabled: !!selectedChannelId,
   });
 
+  // Ensure messages is always an array
+  const messages = messagesQueryData || [];
+
   // Filter messages by search query (after messages is defined)
   const filteredMessages = useMemo(() => {
-    if (!searchQuery) return messages;
+    if (!searchQuery || !messages.length) return messages;
     return messages.filter((msg) =>
       msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.profiles?.full_name.toLowerCase().includes(searchQuery.toLowerCase())
