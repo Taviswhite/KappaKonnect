@@ -131,16 +131,33 @@ BEGIN
   -- Note: IDs are stored in variables but we'll query auth.users directly in subsequent inserts
 END $$;
 
--- Create alumni record
-INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
-SELECT id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA'
-FROM auth.users WHERE email = 'alumni@example.com'
-ON CONFLICT (user_id) DO UPDATE SET
-  full_name = EXCLUDED.full_name,
-  email = EXCLUDED.email,
-  graduation_year = EXCLUDED.graduation_year,
-  current_position = EXCLUDED.current_position,
-  location = EXCLUDED.location;
+-- Create alumni record (using DO block to handle potential conflicts)
+DO $$
+DECLARE
+  alumni_user_id UUID;
+BEGIN
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'alumni@example.com' LIMIT 1;
+  
+  IF alumni_user_id IS NOT NULL THEN
+    INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+    VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA')
+    ON CONFLICT DO NOTHING;
+    
+    -- Update if it already exists (no unique constraint, so we check manually)
+    IF NOT EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA');
+    ELSE
+      UPDATE public.alumni SET
+        full_name = 'Demo Alumni',
+        email = 'alumni@example.com',
+        graduation_year = 2010,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    END IF;
+  END IF;
+END $$;
 
 -- ============================================
 -- STEP 3: CREATE EVENTS
