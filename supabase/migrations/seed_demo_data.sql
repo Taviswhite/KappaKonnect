@@ -139,15 +139,8 @@ BEGIN
   SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'alumni@example.com' LIMIT 1;
   
   IF alumni_user_id IS NOT NULL THEN
-    INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
-    VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA')
-    ON CONFLICT DO NOTHING;
-    
-    -- Update if it already exists (no unique constraint, so we check manually)
-    IF NOT EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
-      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
-      VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA');
-    ELSE
+    -- Update if it already exists, otherwise insert
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
       UPDATE public.alumni SET
         full_name = 'Demo Alumni',
         email = 'alumni@example.com',
@@ -155,6 +148,9 @@ BEGIN
         current_position = 'Software Engineer',
         location = 'Atlanta, GA'
       WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA');
     END IF;
   END IF;
 END $$;
