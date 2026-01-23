@@ -62,45 +62,46 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       if (file) {
         fileSize = `${file.size}`;
         
-        // Create a unique filename
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        const filePath = `${user.id}/${fileName}`;
+        try {
+          // Create a unique filename
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+          const filePath = `${user.id}/${fileName}`;
 
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) {
-          // If bucket doesn't exist, create it or use public URL
-          console.error("Storage upload error:", uploadError);
-          
-          // Try to get public URL if bucket exists but upload failed
-          const { data: publicUrlData } = supabase.storage
+          // Upload to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
             .from('documents')
-            .getPublicUrl(filePath);
-          
-          if (publicUrlData?.publicUrl) {
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error("Storage upload error:", uploadError);
+            // If bucket doesn't exist or permission denied, continue without file
+            if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('new row violates')) {
+              toast.warning("Storage bucket not configured. Document will be saved without file attachment. Please set up the 'documents' bucket in Supabase Storage.");
+            } else {
+              toast.warning(`File upload failed: ${uploadError.message}. Document will be saved without file attachment.`);
+            }
+            fileUrl = null;
+          } else if (uploadData) {
+            // Get public URL for the uploaded file
+            const { data: publicUrlData } = supabase.storage
+              .from('documents')
+              .getPublicUrl(uploadData.path);
+            
             fileUrl = publicUrlData.publicUrl;
-          } else {
-            // If storage isn't set up, save document without file URL
-            toast.warning("File storage not configured. Document saved without file attachment.");
           }
-        } else {
-          // Get public URL for the uploaded file
-          const { data: publicUrlData } = supabase.storage
-            .from('documents')
-            .getPublicUrl(uploadData.path);
-          
-          fileUrl = publicUrlData.publicUrl;
+        } catch (storageError) {
+          console.error("Storage error:", storageError);
+          toast.warning("File upload failed. Document will be saved without file attachment.");
+          fileUrl = null;
         }
       }
 
-      const { error } = await supabase
+      // Always try to save document metadata, even without file
+      const { error: dbError } = await supabase
         .from("documents")
         .insert({
           name: data.name,
@@ -111,9 +112,21 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
           created_by: user.id,
         });
 
-      if (error) {
-        console.error("Error creating document:", error);
-        throw error;
+      if (dbError) {
+        console.error("Database error:", dbError);
+        // Show detailed error message
+        let errorMsg = "Failed to create document. ";
+        if (dbError.code === '42501') {
+          errorMsg += "Permission denied. Please ensure you're logged in and have the correct permissions.";
+        } else if (dbError.code === '42P01') {
+          errorMsg += "Documents table not found. Please run database migrations.";
+        } else if (dbError.message) {
+          errorMsg += dbError.message;
+        } else {
+          errorMsg += "Please check console for details.";
+        }
+        toast.error(errorMsg);
+        throw dbError;
       }
 
       toast.success(`Document "${data.name}" created successfully!`);
@@ -126,8 +139,11 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       setOpen(false);
     } catch (error) {
       console.error("Error creating document:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to create document. Please try again.";
-      toast.error(errorMessage);
+      // Error toast already shown above, don't show duplicate
+      if (!(error instanceof Error && error.message.includes("Failed to create document"))) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to create document. Please try again.";
+        toast.error(errorMessage);
+      }
     }
   };
 

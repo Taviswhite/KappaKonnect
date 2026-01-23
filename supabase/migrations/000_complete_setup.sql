@@ -463,12 +463,10 @@ CREATE POLICY "Authenticated users can view documents"
     USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Officers and admins can create documents" ON public.documents;
-CREATE POLICY "Officers and admins can create documents"
+CREATE POLICY "Authenticated users can create documents"
     ON public.documents FOR INSERT
-    WITH CHECK (
-        public.has_role(auth.uid(), 'admin'::public.app_role) 
-        OR public.has_role(auth.uid(), 'officer'::public.app_role)
-    );
+    TO authenticated
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 -- ============================================
 -- RLS POLICIES - ALUMNI
