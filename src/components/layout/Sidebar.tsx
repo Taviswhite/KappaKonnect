@@ -16,9 +16,11 @@ import {
   Menu,
   X,
   User,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo.jpeg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -47,6 +49,8 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: SidebarProps) {
   const location = useLocation();
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -137,6 +141,26 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
               </Link>
             );
           })}
+          
+          {/* Admin Panel Link - Only visible to admins */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group mt-2 border-t border-sidebar-border pt-2",
+                location.pathname === "/admin"
+                  ? "bg-primary text-primary-foreground shadow-lg glow-primary"
+                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                collapsed && !mobileOpen && "justify-center"
+              )}
+            >
+              <Shield className={cn("w-5 h-5 shrink-0 transition-all duration-200", location.pathname === "/admin" && "text-primary-foreground")} />
+              <span className={cn(
+                "font-medium transition-all duration-300 overflow-hidden whitespace-nowrap",
+                collapsed && !mobileOpen ? "w-0 opacity-0" : "w-auto opacity-100"
+              )}>Admin Panel</span>
+            </Link>
+          )}
         </nav>
 
         {/* Bottom Items */}

@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -223,75 +231,78 @@ const Members = () => {
           </div>
         ) : (
           <div className="glass-card rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="text-left p-4 font-display font-semibold text-foreground">Member</th>
-                  <th className="text-left p-4 font-display font-semibold text-foreground">Role</th>
-                  <th className="text-left p-4 font-display font-semibold text-foreground">Committee</th>
-                  <th className="text-left p-4 font-display font-semibold text-foreground">Contact</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMembers.map((member) => {
-                  const role = getRoleForUser(member.user_id);
-                  const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-                  return (
-                    <tr key={member.id} className="border-t border-border hover:bg-secondary/30 transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 border border-primary">
-                            <AvatarImage src={member.avatar_url || undefined} />
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                              {member.full_name.split(" ").map((n) => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">{member.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{member.email}</p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[50px]">Member</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Committee</TableHead>
+                    <TableHead>Contact</TableHead>
+                    {canEditRoles && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMembers.map((member) => {
+                    const role = getRoleForUser(member.user_id);
+                    const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+                    return (
+                      <TableRow key={member.id} className="hover:bg-secondary/30">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10 border border-primary">
+                              <AvatarImage src={member.avatar_url || undefined} />
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                {member.full_name.split(" ").map((n) => n[0]).join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">{member.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
+                        </TableCell>
+                        <TableCell>
                           <Badge variant="outline" className={cn("text-xs", roleColors[role] || "bg-muted")}>
                             {roleLabel}
                           </Badge>
-                          {canEditRoles && (
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{member.committee || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <a href={`mailto:${member.email}`}>
+                                <Mail className="w-4 h-4" />
+                              </a>
+                            </Button>
+                            {member.phone && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                <a href={`tel:${member.phone}`}>
+                                  <Phone className="w-4 h-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                        {canEditRoles && (
+                          <TableCell className="text-right">
                             <EditUserRoleDialog
                               userId={member.user_id}
                               userName={member.full_name}
                               currentRole={role}
                             >
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <Shield className="w-3 h-3" />
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Shield className="w-4 h-4" />
                               </Button>
                             </EditUserRoleDialog>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">{member.committee || "-"}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <a href={`mailto:${member.email}`}>
-                              <Mail className="w-4 h-4" />
-                            </a>
-                          </Button>
-                          {member.phone && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={`tel:${member.phone}`}>
-                                <Phone className="w-4 h-4" />
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

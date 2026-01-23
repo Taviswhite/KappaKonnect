@@ -19,13 +19,20 @@ import {
   Palette, 
   Lock,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  Settings as SettingsIcon
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
   const { toast } = useToast();
+  const { hasRole } = useAuth();
+  const navigate = useNavigate();
+  const isAdmin = hasRole("admin");
 
   const [preferences, setPreferences] = useState({
     theme: "dark",
@@ -110,6 +117,12 @@ export default function Settings() {
               <Lock className="w-4 h-4" />
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Preferences Tab */}
@@ -461,6 +474,79 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Admin Tab */}
+          {isAdmin && (
+            <TabsContent value="admin" className="space-y-6">
+              <Card className="glass-card border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    Admin Controls
+                  </CardTitle>
+                  <CardDescription>
+                    Administrative functions and user management
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-secondary/20 border border-primary/20">
+                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-primary" />
+                        User Management
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Manage user roles, permissions, and access controls.
+                      </p>
+                      <Button 
+                        variant="hero" 
+                        onClick={() => navigate("/admin")}
+                        className="w-full sm:w-auto"
+                      >
+                        <Shield className="w-4 h-4 mr-2" />
+                        Open Admin Panel
+                      </Button>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-secondary/20">
+                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                        <SettingsIcon className="w-4 h-4 text-primary" />
+                        System Settings
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Configure application-wide settings and preferences.
+                      </p>
+                      <div className="space-y-2">
+                        <Button 
+                          variant="outline" 
+                          className="w-full sm:w-auto"
+                          onClick={() => toast.info("System settings coming soon!")}
+                        >
+                          Configure System
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                      Admin Responsibilities
+                    </h4>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p>• Manage user roles and permissions</p>
+                      <p>• Assign admin privileges to trusted members</p>
+                      <p>• Monitor system activity and user access</p>
+                      <p>• Configure application settings</p>
+                      <p>• Ensure data security and privacy</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>
