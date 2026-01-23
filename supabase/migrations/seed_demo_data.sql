@@ -159,6 +159,7 @@ END $$;
 -- STEP 3: CREATE EVENTS
 -- ============================================
 
+-- Core featured events
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
 SELECT 
   gen_random_uuid(),
@@ -193,6 +194,55 @@ SELECT
   NOW() + INTERVAL '14 days' + INTERVAL '3 hours',
   id
 FROM auth.users WHERE email = 'admin@example.com'
+ON CONFLICT DO NOTHING;
+
+-- Additional demo events to fully populate Events & Dashboard (total ~8)
+INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
+SELECT 
+  gen_random_uuid(),
+  'Study Night',
+  'Group study session with tutoring support.',
+  'Library Room 204',
+  NOW() + INTERVAL '2 days',
+  NOW() + INTERVAL '2 days' + INTERVAL '3 hours',
+  id
+FROM auth.users WHERE email = 'member1@example.com'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
+SELECT 
+  gen_random_uuid(),
+  'Community Cleanup',
+  'Neighborhood cleanup and outreach.',
+  'City Park Entrance',
+  NOW() + INTERVAL '9 days',
+  NOW() + INTERVAL '9 days' + INTERVAL '4 hours',
+  id
+FROM auth.users WHERE email = 'chair@example.com'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
+SELECT 
+  gen_random_uuid(),
+  'Scholarship Info Session',
+  'Information session on chapter scholarships and applications.',
+  'Student Union Auditorium',
+  NOW() + INTERVAL '5 days',
+  NOW() + INTERVAL '5 days' + INTERVAL '2 hours',
+  id
+FROM auth.users WHERE email = 'admin@example.com'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
+SELECT 
+  gen_random_uuid(),
+  'Career Panel',
+  'Alumni panel discussing careers in tech, business, and education.',
+  'Business School Room 101',
+  NOW() + INTERVAL '11 days',
+  NOW() + INTERVAL '11 days' + INTERVAL '2 hours',
+  id
+FROM auth.users WHERE email = 'alumni@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -253,9 +303,59 @@ FROM auth.users WHERE email = 'admin@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
+-- STEP 5B: CREATE CHAT MEMBERS & MESSAGES
+-- ============================================
+
+-- Add members to both channels
+INSERT INTO public.channel_members (channel_id, user_id)
+SELECT c.id, u.id
+FROM public.channels c
+JOIN auth.users u ON u.email IN ('admin@example.com', 'eboard@example.com', 'chair@example.com', 'member1@example.com', 'member2@example.com')
+WHERE c.name IN ('General', 'Events & Announcements')
+ON CONFLICT (channel_id, user_id) DO NOTHING;
+
+-- Seed messages in General channel
+INSERT INTO public.messages (channel_id, user_id, content)
+SELECT c.id, u.id, 'Welcome to the General channel! Use this space for everyday chapter communication.'
+FROM public.channels c
+JOIN auth.users u ON u.email = 'admin@example.com'
+WHERE c.name = 'General'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.messages (channel_id, user_id, content)
+SELECT c.id, u.id, 'Reminder: Interest Meeting is coming up this week. Please review your assigned tasks.'
+FROM public.channels c
+JOIN auth.users u ON u.email = 'eboard@example.com'
+WHERE c.name = 'General'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.messages (channel_id, user_id, content)
+SELECT c.id, u.id, 'Looking forward to the Service Day event! Who is available to help with setup?'
+FROM public.channels c
+JOIN auth.users u ON u.email = 'chair@example.com'
+WHERE c.name = 'General'
+ON CONFLICT DO NOTHING;
+
+-- Seed messages in Events & Announcements channel
+INSERT INTO public.messages (channel_id, user_id, content)
+SELECT c.id, u.id, 'New event added: Career Panel with alumni from various industries. Please RSVP.'
+FROM public.channels c
+JOIN auth.users u ON u.email = 'admin@example.com'
+WHERE c.name = 'Events & Announcements'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.messages (channel_id, user_id, content)
+SELECT c.id, u.id, 'Service Day details have been updated with meeting point and timeline.'
+FROM public.channels c
+JOIN auth.users u ON u.email = 'chair@example.com'
+WHERE c.name = 'Events & Announcements'
+ON CONFLICT DO NOTHING;
+
+-- ============================================
 -- STEP 6: CREATE TASKS
 -- ============================================
 
+-- Core tasks
 INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
 SELECT 
   gen_random_uuid(),
@@ -283,6 +383,63 @@ SELECT
 FROM auth.users chair
 CROSS JOIN auth.users member2
 WHERE chair.email = 'chair@example.com' AND member2.email = 'member2@example.com'
+LIMIT 1
+ON CONFLICT DO NOTHING;
+
+-- Additional demo tasks
+INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
+SELECT 
+  gen_random_uuid(),
+  'Prepare interest meeting slide deck',
+  'Create slides covering chapter history, requirements, and expectations.',
+  'in_progress',
+  admin.id,
+  NULL,
+  NOW() + INTERVAL '3 days'
+FROM auth.users admin
+WHERE admin.email = 'admin@example.com'
+LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
+SELECT 
+  gen_random_uuid(),
+  'Order catering for Alumni Mixer',
+  'Confirm catering order and headcount.',
+  'todo',
+  eboard.id,
+  NULL,
+  NOW() + INTERVAL '10 days'
+FROM auth.users eboard
+WHERE eboard.email = 'eboard@example.com'
+LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
+SELECT 
+  gen_random_uuid(),
+  'Promote Service Day on social media',
+  'Post flyers and reminders on chapter social channels.',
+  'completed',
+  chair.id,
+  NULL,
+  NOW() - INTERVAL '1 day'
+FROM auth.users chair
+WHERE chair.email = 'chair@example.com'
+LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.tasks (id, title, description, status, created_by, assigned_to, due_date)
+SELECT 
+  gen_random_uuid(),
+  'Update alumni contact list',
+  'Verify emails and LinkedIn profiles for alumni.',
+  'in_progress',
+  admin.id,
+  NULL,
+  NOW() + INTERVAL '6 days'
+FROM auth.users admin
+WHERE admin.email = 'admin@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
