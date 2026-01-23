@@ -155,6 +155,16 @@ BEGIN
   END IF;
 END $$;
 
+-- Additional standalone alumni records (not tied to auth.users) to fill Alumni portal
+INSERT INTO public.alumni (full_name, email, graduation_year, current_company, current_position, location, linkedin_url, industry)
+VALUES
+  ('Marcus Johnson', 'marcus.johnson@example.com', 2012, 'TechCorp', 'Senior Software Engineer', 'Atlanta, GA', 'https://linkedin.com/in/marcusjohnson', 'Technology'),
+  ('Derrick Williams', 'derrick.williams@example.com', 2014, 'State University', 'Assistant Dean of Students', 'Chicago, IL', 'https://linkedin.com/in/derrickwilliams', 'Higher Education'),
+  ('Andre Thompson', 'andre.thompson@example.com', 2016, 'City Bank', 'Investment Analyst', 'New York, NY', 'https://linkedin.com/in/andrethompson', 'Finance'),
+  ('Brandon Scott', 'brandon.scott@example.com', 2018, 'Community Impact', 'Program Director', 'Houston, TX', 'https://linkedin.com/in/brandonscott', 'Non‑Profit'),
+  ('Jamal Carter', 'jamal.carter@example.com', 2020, 'HealthFirst', 'Project Manager', 'Los Angeles, CA', 'https://linkedin.com/in/jamalcarter', 'Healthcare')
+ON CONFLICT DO NOTHING;
+
 -- STEP 3: CREATE EVENTS
 -- ============================================
 
