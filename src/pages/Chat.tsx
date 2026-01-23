@@ -215,7 +215,11 @@ const Chat = () => {
           <div className="p-4 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search chats..." className="pl-10 bg-secondary/50" />
+              <Input 
+                placeholder="Search chats..." 
+                className="pl-10 bg-secondary/50"
+                onChange={() => toast.info("Search functionality coming soon!")}
+              />
             </div>
           </div>
 
@@ -285,13 +289,25 @@ const Chat = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon">
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toast.info("Channel members coming soon!")}
+                  >
                     <Users className="w-5 h-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toast.info("Pin channel coming soon!")}
+                  >
                     <Pin className="w-5 h-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toast.info("Channel options coming soon!")}
+                  >
                     <MoreVertical className="w-5 h-5" />
                   </Button>
                 </div>
@@ -357,7 +373,12 @@ const Chat = () => {
               {/* Input */}
               <div className="p-4 border-t border-border">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" size="icon">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toast.info("File attachments coming soon!")}
+                  >
                     <Paperclip className="w-5 h-5" />
                   </Button>
                   <Input
@@ -367,7 +388,12 @@ const Chat = () => {
                     className="flex-1 bg-secondary/50"
                     disabled={sendMessageMutation.isPending}
                   />
-                  <Button type="button" variant="ghost" size="icon">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toast.info("Emoji picker coming soon!")}
+                  >
                     <Smile className="w-5 h-5" />
                   </Button>
                   <Button

@@ -31,6 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 export default function Profile() {
   const { profile, roles, user } = useAuth();
@@ -145,6 +146,7 @@ export default function Profile() {
                 <Button
                   size="icon"
                   className="absolute -bottom-1 -right-1 rounded-full w-8 h-8 shadow-lg"
+                  onClick={() => toast.info("Avatar upload coming soon!")}
                 >
                   <Camera className="w-4 h-4" />
                 </Button>

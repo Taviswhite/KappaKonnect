@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { Check, Trash2, Calendar, MessageSquare, CheckSquare, Users, Megaphone } from "lucide-react";
+import { toast } from "sonner";
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -115,7 +116,12 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
         {/* Right Section */}
         <div className="flex items-center gap-2 sm:gap-4 ml-auto">
           {/* Mobile Search Button */}
-          <Button variant="ghost" size="icon" className="sm:hidden">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="sm:hidden"
+            onClick={() => toast.info("Search functionality coming soon!")}
+          >
             <Search className="w-5 h-5" />
           </Button>
 

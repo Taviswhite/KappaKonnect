@@ -209,7 +209,15 @@ function TaskCard({ task, onStatusChange }: { task: Database["public"]["Tables"]
             "w-4 h-4",
             task.status === "completed" ? "text-green-500" : task.status === "in_progress" ? "text-accent" : "text-muted-foreground"
           )} />
-          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.info("Task options coming soon!");
+            }}
+          >
             <MoreVertical className="w-4 h-4" />
           </Button>
         </div>

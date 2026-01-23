@@ -82,7 +82,11 @@ const Documents = () => {
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => toast.info("Filter options coming soon!")}
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>

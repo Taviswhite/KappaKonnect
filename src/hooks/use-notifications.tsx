@@ -55,7 +55,16 @@ export function useNotifications() {
         .maybeSingle();
 
       if (preferences?.push_enabled) {
-        await notificationService.subscribeToPush(user.id);
+        // Only request permission if it hasn't been granted yet
+        if (Notification.permission === "default") {
+          // Don't auto-request - user needs to enable it manually
+          console.log("Push notifications enabled but permission not granted. User needs to enable manually.");
+          return;
+        }
+        
+        if (Notification.permission === "granted") {
+          await notificationService.subscribeToPush(user.id);
+        }
       }
     };
 

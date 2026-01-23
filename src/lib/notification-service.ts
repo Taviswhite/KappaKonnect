@@ -23,21 +23,52 @@ export class NotificationService {
     }
 
     try {
-      // Register service worker
-      this.registration = await navigator.serviceWorker.ready;
+      // Wait for service worker to be ready (or register if not already registered)
+      if (navigator.serviceWorker.controller) {
+        // Service worker already active
+        this.registration = await navigator.serviceWorker.ready;
+      } else {
+        // Try to get existing registration or wait for it
+        this.registration = await navigator.serviceWorker.getRegistration() || 
+                           await navigator.serviceWorker.ready;
+      }
       
-      // Request notification permission
-      if (Notification.permission === "default") {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          console.log("Notification permission denied");
-          return false;
-        }
+      // Don't request permission automatically - it requires a user gesture
+      // Permission will be requested when user explicitly enables push notifications
+      if (Notification.permission === "granted") {
+        return true;
       }
 
-      return true;
+      // If permission is default, we'll request it later with user interaction
+      return Notification.permission !== "denied";
     } catch (error) {
       console.error("Error initializing notification service:", error);
+      // Don't throw - just return false so app can continue
+      return false;
+    }
+  }
+
+  async requestPermission(): Promise<boolean> {
+    if (!("Notification" in window)) {
+      console.log("This browser does not support notifications");
+      return false;
+    }
+
+    if (Notification.permission === "granted") {
+      return true;
+    }
+
+    if (Notification.permission === "denied") {
+      console.log("Notification permission was previously denied");
+      return false;
+    }
+
+    // Request permission (this requires a user gesture)
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === "granted";
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
       return false;
     }
   }
@@ -121,5 +152,15 @@ export class NotificationService {
   }
 }
 
-// Export singleton instance
-export const notificationService = NotificationService.getInstance();
+// Export singleton instance - lazy initialization
+let notificationServiceInstance: NotificationService | null = null;
+
+export function getNotificationService(): NotificationService {
+  if (!notificationServiceInstance) {
+    notificationServiceInstance = NotificationService.getInstance();
+  }
+  return notificationServiceInstance;
+}
+
+// Export for backward compatibility (but use getNotificationService() for better HMR)
+export const notificationService = getNotificationService();

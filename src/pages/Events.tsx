@@ -271,17 +271,39 @@ function RSVPButton({ eventId }: { eventId: string }) {
 
   if (!user) return null;
 
-  if (rsvp) {
-    return (
-      <Button size="sm" variant="outline" onClick={() => rsvpMutation.mutate("going")}>
-        {rsvp.status === "going" ? "✓ Going" : "RSVP"}
-      </Button>
-    );
-  }
+  const handleRSVP = () => {
+    if (!rsvp) {
+      rsvpMutation.mutate("going");
+    } else if (rsvp.status === "going") {
+      rsvpMutation.mutate("maybe");
+    } else if (rsvp.status === "maybe") {
+      rsvpMutation.mutate("not_going");
+    } else {
+      rsvpMutation.mutate("going");
+    }
+  };
+
+  const getRSVPButtonText = () => {
+    if (!rsvp) return "RSVP";
+    switch (rsvp.status) {
+      case "going":
+        return "✓ Going";
+      case "maybe":
+        return "? Maybe";
+      case "not_going":
+        return "✗ Not Going";
+      default:
+        return "RSVP";
+    }
+  };
 
   return (
-    <Button size="sm" variant="hero" onClick={() => rsvpMutation.mutate("going")}>
-      RSVP
+    <Button 
+      size="sm" 
+      variant={rsvp?.status === "going" ? "hero" : "outline"} 
+      onClick={handleRSVP}
+    >
+      {getRSVPButtonText()}
     </Button>
   );
 }
