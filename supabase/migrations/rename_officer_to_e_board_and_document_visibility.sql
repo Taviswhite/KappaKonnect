@@ -15,40 +15,55 @@ BEGIN
   END IF;
 END $$;
 
--- Step 2: Drop all policies and functions that depend on the old app_role enum
--- These must be dropped before we can drop the enum type
+-- Step 2: Drop ALL policies that might depend on app_role enum or has_role function
+-- We'll drop them all and recreate them later
 
--- Drop all policies that might reference app_role
+-- Drop all policies dynamically
 DO $$
 DECLARE
     r RECORD;
 BEGIN
-    -- Drop all policies that use has_role function
+    -- Drop ALL policies on tables that might use has_role
     FOR r IN 
         SELECT schemaname, tablename, policyname 
         FROM pg_policies 
         WHERE schemaname = 'public'
-        AND (policyname LIKE '%officer%' OR policyname LIKE '%admin%' OR policyname LIKE '%role%')
+        AND tablename IN ('user_roles', 'events', 'tasks', 'attendance', 'channels', 'documents', 'alumni', 'profiles')
     LOOP
-        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+        BEGIN
+            EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+        EXCEPTION WHEN OTHERS THEN
+            -- Ignore errors if policy doesn't exist
+            NULL;
+        END;
     END LOOP;
 END $$;
 
--- Drop specific policies by name (in case the above doesn't catch them all)
+-- Also drop by specific names to be safe
 DROP POLICY IF EXISTS "Admins can manage roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Authenticated users can view roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete events" ON public.events;
-DROP POLICY IF EXISTS "Admins and alumni can create alumni records" ON public.alumni;
-DROP POLICY IF EXISTS "Officers and admins can create events" ON public.events;
-DROP POLICY IF EXISTS "Officers and admins can update events" ON public.events;
 DROP POLICY IF EXISTS "Members can view events" ON public.events;
+DROP POLICY IF EXISTS "Admins and alumni can create alumni records" ON public.alumni;
+DROP POLICY IF EXISTS "Authenticated users can view alumni" ON public.alumni;
+DROP POLICY IF EXISTS "Officers and admins can create events" ON public.events;
+DROP POLICY IF EXISTS "E-Board and admins can create events" ON public.events;
+DROP POLICY IF EXISTS "Officers and admins can update events" ON public.events;
+DROP POLICY IF EXISTS "E-Board and admins can update events" ON public.events;
 DROP POLICY IF EXISTS "Admins and officers can manage attendance" ON public.attendance;
+DROP POLICY IF EXISTS "Admins and E-Board can manage attendance" ON public.attendance;
 DROP POLICY IF EXISTS "Authenticated users can view attendance" ON public.attendance;
 DROP POLICY IF EXISTS "Users can check themselves in" ON public.attendance;
 DROP POLICY IF EXISTS "Officers and admins can create channels" ON public.channels;
+DROP POLICY IF EXISTS "E-Board and admins can create channels" ON public.channels;
 DROP POLICY IF EXISTS "Authenticated users can view channels" ON public.channels;
 DROP POLICY IF EXISTS "Officers and admins can create documents" ON public.documents;
+DROP POLICY IF EXISTS "E-Board and admins can create documents" ON public.documents;
 DROP POLICY IF EXISTS "Officers and admins can update documents" ON public.documents;
+DROP POLICY IF EXISTS "Users can update documents" ON public.documents;
+DROP POLICY IF EXISTS "Users can delete documents" ON public.documents;
+DROP POLICY IF EXISTS "Users can view visible documents" ON public.documents;
+DROP POLICY IF EXISTS "Users can create documents" ON public.documents;
 DROP POLICY IF EXISTS "Authenticated users can view documents" ON public.documents;
 DROP POLICY IF EXISTS "Authenticated users can create documents" ON public.documents;
 DROP POLICY IF EXISTS "Admins can delete documents" ON public.documents;
@@ -57,8 +72,8 @@ DROP POLICY IF EXISTS "Admins can delete documents" ON public.documents;
 DROP TRIGGER IF EXISTS check_task_assignment_on_insert ON public.tasks;
 DROP TRIGGER IF EXISTS check_task_assignment_on_update ON public.tasks;
 
--- Step 3: Drop the has_role function that depends on the old enum
-DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
+-- Step 3: Drop the has_role function (now safe since all policies are dropped)
+DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role) CASCADE;
 
 -- Step 4: Update user_roles table to use new enum
 -- First, drop the default constraint
