@@ -36,8 +36,8 @@ export function CreateTaskDialog({ children }: CreateTaskDialogProps) {
   const { user, hasRole } = useAuth();
   const queryClient = useQueryClient();
 
-  // Check if user can assign tasks (only officers, admins, and committee chairmen)
-  const canAssignTasks = hasRole("admin") || hasRole("officer") || hasRole("committee_chairman");
+  // Check if user can assign tasks (only E-Board, admins, and committee chairmen)
+  const canAssignTasks = hasRole("admin") || hasRole("e_board") || hasRole("committee_chairman");
 
   // Fetch members for assignment
   const { data: members = [] } = useQuery({
@@ -237,7 +237,7 @@ export function CreateTaskDialog({ children }: CreateTaskDialogProps) {
             <div className="space-y-2">
               <Label htmlFor="assigned_to">Assignment</Label>
               <div className="p-3 rounded-lg bg-secondary/50 border border-border text-sm text-muted-foreground">
-                <p>This task will be unassigned. Only officers, admins, and committee chairmen can assign tasks to members.</p>
+                <p>This task will be unassigned. Only E-Board, admins, and committee chairmen can assign tasks to members.</p>
               </div>
             </div>
           )}

@@ -8,16 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { FileText } from "lucide-react";
+import { FileText, Globe, Lock, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 const documentSchema = z.object({
   name: z.string().min(1, "Document name is required"),
   description: z.string().optional(),
   file_type: z.string().default("PDF"),
+  visibility: z.enum(["public", "private", "shared"]).default("private"),
+  shared_with_roles: z.array(z.string()).optional(),
 });
 
 type DocumentFormData = z.infer<typeof documentSchema>;
@@ -29,9 +33,13 @@ interface CreateDocumentDialogProps {
 export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
   const [open, setOpen] = useState(false);
   const [fileType, setFileType] = useState("PDF");
+  const [visibility, setVisibility] = useState<"public" | "private" | "shared">("private");
+  const [sharedRoles, setSharedRoles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  
+  const isEBoardOrAdmin = hasRole("admin") || hasRole("e_board");
 
   const {
     register,
@@ -44,6 +52,7 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
     resolver: zodResolver(documentSchema),
     defaultValues: {
       file_type: "PDF",
+      visibility: "private",
     },
   });
 
@@ -106,13 +115,19 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       }
 
       // Prepare insert data
-      const insertData = {
+      const insertData: any = {
         name: data.name,
         file_type: fileType,
         file_size: fileSize,
         file_url: fileUrl,
         created_by: user.id,
+        visibility: visibility,
       };
+
+      // Add sharing fields if visibility is "shared"
+      if (visibility === "shared" && sharedRoles.length > 0) {
+        insertData.shared_with_roles = sharedRoles;
+      }
 
       console.log("Inserting document:", insertData);
 
@@ -153,6 +168,8 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       reset();
       setFileType("PDF");
+      setVisibility("private");
+      setSharedRoles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -228,6 +245,78 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
             />
             <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, or TXT files. File upload will be available after Storage setup.</p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="visibility">Visibility *</Label>
+            <Select 
+              value={visibility} 
+              onValueChange={(value: "public" | "private" | "shared") => {
+                setVisibility(value);
+                setValue("visibility", value);
+                if (value !== "shared") {
+                  setSharedRoles([]);
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {isEBoardOrAdmin && (
+                  <SelectItem value="public">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      <span>Public (Visible to all members)</span>
+                    </div>
+                  </SelectItem>
+                )}
+                <SelectItem value="private">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    <span>Private (Only you can see)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="shared">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    <span>Shared (Share with specific roles)</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {!isEBoardOrAdmin && visibility === "public" && (
+              <p className="text-xs text-destructive">Only E-Board and admins can create public documents.</p>
+            )}
+          </div>
+
+          {visibility === "shared" && (
+            <div className="space-y-2">
+              <Label>Share with Roles</Label>
+              <div className="space-y-2 p-3 border rounded-lg bg-secondary/30">
+                {["e_board", "committee_chairman", "member", "alumni"].map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`role-${role}`}
+                      checked={sharedRoles.includes(role)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSharedRoles([...sharedRoles, role]);
+                        } else {
+                          setSharedRoles(sharedRoles.filter(r => r !== role));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`role-${role}`} className="font-normal cursor-pointer capitalize">
+                      {role.replace("_", " ")}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {sharedRoles.length === 0 && (
+                <p className="text-xs text-muted-foreground">Select at least one role to share with.</p>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

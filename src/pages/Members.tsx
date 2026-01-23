@@ -22,7 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
-  officer: "bg-primary/20 text-primary border-primary/30",
+  e_board: "bg-primary/20 text-primary border-primary/30",
   committee_chairman: "bg-accent/20 text-accent border-accent/30",
   member: "bg-secondary text-secondary-foreground border-secondary",
   alumni: "bg-purple-500/20 text-purple-400 border-purple-500/30",

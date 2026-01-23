@@ -3,13 +3,14 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen, Plus } from "lucide-react";
+import { Search, Filter, FileText, Upload, Download, PenTool, CheckCircle, Clock, AlertCircle, FolderOpen, Plus, Globe, Lock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateDocumentDialog } from "@/components/dialogs/CreateDocumentDialog";
 import { CreateFolderDialog } from "@/components/dialogs/CreateFolderDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 const statusConfig = {
   signed: { label: "Completed", icon: CheckCircle, className: "bg-green-500/20 text-green-400 border-green-500/30" },
@@ -19,19 +20,18 @@ const statusConfig = {
 
 const Documents = () => {
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
 
-  // Fetch documents from database (when table exists)
+  // Fetch documents from database (RLS will filter by visibility automatically)
   const { data: documents = [], isLoading } = useQuery({
-    queryKey: ["documents"],
+    queryKey: ["documents", user?.id],
     queryFn: async () => {
-      // Check if documents table exists, if not return empty array
       const { data, error } = await supabase
         .from("documents")
         .select("*")
         .order("created_at", { ascending: false });
       
       if (error) {
-        // Table doesn't exist yet, return empty array
         if (error.code === "42P01") {
           return [];
         }
@@ -113,54 +113,65 @@ const Documents = () => {
         ) : (
           <div className="glass-card rounded-xl overflow-hidden">
             <div className="grid grid-cols-12 gap-4 p-4 bg-secondary/50 text-sm font-semibold text-muted-foreground">
-              <div className="col-span-5">Document</div>
+              <div className="col-span-4">Document</div>
               <div className="col-span-2">Type</div>
+              <div className="col-span-2">Visibility</div>
               <div className="col-span-2">Modified</div>
               <div className="col-span-2">Size</div>
-              <div className="col-span-1"></div>
             </div>
 
-            {filteredDocuments.map((doc) => (
-              <div
-                key={doc.id}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-secondary/30 transition-colors border-t border-border"
-              >
-                <div className="col-span-5 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-primary" />
+            {filteredDocuments.map((doc) => {
+              const VisibilityIcon = doc.visibility === "public" ? Globe : doc.visibility === "shared" ? Users : Lock;
+              const visibilityLabel = doc.visibility === "public" ? "Public" : doc.visibility === "shared" ? "Shared" : "Private";
+              const visibilityColor = doc.visibility === "public" ? "bg-green-500/20 text-green-400 border-green-500/30" : 
+                                     doc.visibility === "shared" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                     "bg-muted text-muted-foreground border-muted";
+              
+              return (
+                <div
+                  key={doc.id}
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-secondary/30 transition-colors border-t border-border"
+                >
+                  <div className="col-span-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{doc.name || "Untitled Document"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{doc.name || "Untitled Document"}</p>
-                    {doc.description && (
-                      <p className="text-xs text-muted-foreground">{doc.description}</p>
+                  <div className="col-span-2">
+                    <Badge variant="outline" className="text-xs">
+                      {doc.file_type || "Document"}
+                    </Badge>
+                  </div>
+                  <div className="col-span-2">
+                    <Badge variant="outline" className={cn("text-xs flex items-center gap-1 w-fit", visibilityColor)}>
+                      <VisibilityIcon className="w-3 h-3" />
+                      {visibilityLabel}
+                    </Badge>
+                  </div>
+                  <div className="col-span-2 text-sm text-muted-foreground">
+                    {doc.updated_at ? format(new Date(doc.updated_at), "MMM d, yyyy") : "-"}
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {doc.file_size ? `${(parseInt(doc.file_size) / 1024).toFixed(1)} KB` : "-"}
+                    </span>
+                    {doc.file_url && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => window.open(doc.file_url, "_blank")}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
                     )}
                   </div>
                 </div>
-                <div className="col-span-2">
-                  <Badge variant="outline" className="text-xs">
-                    {doc.file_type || "Document"}
-                  </Badge>
-                </div>
-                <div className="col-span-2 text-sm text-muted-foreground">
-                  {doc.updated_at ? format(new Date(doc.updated_at), "MMM d, yyyy") : "-"}
-                </div>
-                <div className="col-span-2 text-sm text-muted-foreground">
-                  {doc.file_size ? doc.file_size : "-"}
-                </div>
-                <div className="col-span-1 flex items-center justify-end gap-1">
-                  {doc.file_url && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => window.open(doc.file_url, "_blank")}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

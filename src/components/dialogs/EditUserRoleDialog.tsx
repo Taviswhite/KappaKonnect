@@ -9,7 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Shield } from "lucide-react";
 
-type AppRole = "admin" | "officer" | "committee_chairman" | "member" | "alumni";
+type AppRole = "admin" | "e_board" | "committee_chairman" | "member" | "alumni";
 
 interface EditUserRoleDialogProps {
   userId: string;
@@ -102,14 +102,14 @@ export function EditUserRoleDialog({ userId, userName, currentRole, children }: 
               <SelectContent>
                 <SelectItem value="member">Member</SelectItem>
                 <SelectItem value="committee_chairman">Committee Chairman</SelectItem>
-                <SelectItem value="officer">Officer</SelectItem>
+                <SelectItem value="e_board">E-Board</SelectItem>
                 <SelectItem value="alumni">Alumni</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-2">
               <strong>Admin:</strong> Full access to all features<br />
-              <strong>Officer:</strong> Access to sensitive statistics and management<br />
+              <strong>E-Board:</strong> Access to sensitive statistics and management<br />
               <strong>Committee Chairman:</strong> Access to committee-specific features<br />
               <strong>Alumni:</strong> Alumni-level access<br />
               <strong>Member:</strong> Standard member access

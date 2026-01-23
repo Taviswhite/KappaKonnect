@@ -15,7 +15,7 @@ interface Profile {
 }
 
 interface UserRole {
-  role: "admin" | "officer" | "committee_chairman" | "member" | "alumni";
+  role: "admin" | "e_board" | "committee_chairman" | "member" | "alumni";
 }
 
 interface AuthContextType {

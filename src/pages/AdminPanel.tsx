@@ -43,13 +43,13 @@ import { format, parseISO } from "date-fns";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
-  officer: "bg-primary/20 text-primary border-primary/30",
+  e_board: "bg-primary/20 text-primary border-primary/30",
   committee_chairman: "bg-accent/20 text-accent border-accent/30",
   member: "bg-secondary text-secondary-foreground border-secondary",
   alumni: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
-type AppRole = "admin" | "officer" | "committee_chairman" | "member" | "alumni";
+type AppRole = "admin" | "e_board" | "committee_chairman" | "member" | "alumni";
 
 const AdminPanel = () => {
   const [search, setSearch] = useState("");
@@ -155,7 +155,7 @@ const AdminPanel = () => {
   const stats = {
     total: profiles.length,
     admins: userRoles.filter(r => r.role === "admin").length,
-    officers: userRoles.filter(r => r.role === "officer").length,
+    e_board: userRoles.filter(r => r.role === "e_board").length,
     members: userRoles.filter(r => r.role === "member").length,
     alumni: userRoles.filter(r => r.role === "alumni").length,
     committee_chairmen: userRoles.filter(r => r.role === "committee_chairman").length,
@@ -229,8 +229,8 @@ const AdminPanel = () => {
           </Card>
           <Card className="glass-card border-0">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-primary">{stats.officers}</p>
-              <p className="text-xs text-muted-foreground mt-1">Officers</p>
+              <p className="text-2xl font-display font-bold text-primary">{stats.e_board}</p>
+              <p className="text-xs text-muted-foreground mt-1">E-Board</p>
             </CardContent>
           </Card>
           <Card className="glass-card border-0">
@@ -275,7 +275,7 @@ const AdminPanel = () => {
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="officer">Officer</SelectItem>
+                    <SelectItem value="e_board">E-Board</SelectItem>
                     <SelectItem value="committee_chairman">Committee Chairman</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
                     <SelectItem value="alumni">Alumni</SelectItem>
@@ -514,7 +514,7 @@ const AdminPanel = () => {
                   Role Management
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Click the shield icon next to any user to change their role. You can assign Admin, Officer, Committee Chairman, Member, or Alumni roles.
+                  Click the shield icon next to any user to change their role. You can assign Admin, E-Board, Committee Chairman, Member, or Alumni roles.
                 </p>
               </div>
               <div className="p-4 rounded-lg bg-secondary/20">

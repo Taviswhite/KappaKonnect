@@ -20,8 +20,8 @@ const Index = () => {
     return profile?.full_name?.split(" ")[0] || "Member";
   }, [profile?.full_name]);
   
-  // Check if user has elevated privileges (admin, officer, or committee chair)
-  const canViewSensitiveStats = hasRole("admin") || hasRole("officer") || hasRole("committee_chairman");
+  // Check if user has elevated privileges (admin, E-Board, or committee chair)
+  const canViewSensitiveStats = hasRole("admin") || hasRole("e_board") || hasRole("committee_chairman");
 
   // Fetch upcoming events count
   const { data: upcomingEventsCount = 0, isLoading: isLoadingEvents, error: eventsError } = useQuery({
