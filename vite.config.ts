@@ -93,6 +93,10 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
+        devOptions: {
+          enabled: true,
+          type: "module",
+        },
       }),
       mode === "development" && componentTagger(),
     ].filter(Boolean),

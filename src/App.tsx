@@ -5,6 +5,7 @@ import { BrowserRouter, Routes } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { appRoutes } from "./routes";
+import { useNotifications } from "@/hooks/use-notifications";
 
 // React Query DevTools - uncomment after installing: npm install -D @tanstack/react-query-devtools
 // import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -23,18 +24,26 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppContent = () => {
+  useNotifications(); // Initialize notification handling
+  
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {appRoutes}
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              {appRoutes}
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
       {/* Uncomment after installing @tanstack/react-query-devtools */}
       {/* {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />} */}

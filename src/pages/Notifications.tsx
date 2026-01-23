@@ -13,56 +13,32 @@ import {
   Users,
   Check,
   Trash2,
-  Settings
+  Settings,
+  Megaphone
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { format, formatDistanceToNow } from "date-fns";
+import { SendAnnouncementDialog } from "@/components/dialogs/SendAnnouncementDialog";
 
 interface Notification {
   id: string;
-  type: "event" | "task" | "message" | "member";
+  user_id: string;
   title: string;
-  description: string;
-  time: string;
+  message: string;
+  type: "announcement" | "event" | "task" | "message" | "member" | "system";
+  link: string | null;
   read: boolean;
+  created_at: string;
+  created_by: string | null;
 }
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "event",
-    title: "Chapter Meeting Tonight",
-    description: "Don't forget the meeting at 7 PM in the chapter house",
-    time: "2 hours ago",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "task",
-    title: "New Task Assigned",
-    description: "You've been assigned to review the budget proposal",
-    time: "5 hours ago",
-    read: false,
-  },
-  {
-    id: "4",
-    type: "message",
-    title: "New Message from John",
-    description: "Hey, can we discuss the event planning?",
-    time: "2 days ago",
-    read: true,
-  },
-  {
-    id: "5",
-    type: "member",
-    title: "New Member Joined",
-    description: "Marcus Johnson has joined the chapter",
-    time: "3 days ago",
-    read: true,
-  },
-];
 
 const getNotificationIcon = (type: Notification["type"]) => {
   switch (type) {
+    case "announcement":
+      return <Megaphone className="w-5 h-5 text-primary" />;
     case "event":
       return <Calendar className="w-5 h-5 text-primary" />;
     case "task":
@@ -71,38 +47,191 @@ const getNotificationIcon = (type: Notification["type"]) => {
       return <MessageSquare className="w-5 h-5 text-blue-500" />;
     case "member":
       return <Users className="w-5 h-5 text-purple-500" />;
+    case "system":
+      return <Bell className="w-5 h-5 text-muted-foreground" />;
   }
 };
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState(mockNotifications);
-  const [preferences, setPreferences] = useState({
-    events: true,
-    tasks: true,
-    messages: true,
-    members: true,
-    email: true,
-    push: false,
+  const { user, hasRole } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdminOrEBoard = hasRole("admin") || hasRole("e_board");
+
+  // Fetch notifications from database
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ["notifications", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      return (data || []) as Notification[];
+    },
+    enabled: !!user,
   });
+
+  // Fetch notification preferences
+  const { data: preferences = null } = useQuery({
+    queryKey: ["notification-preferences", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("notification_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows returned
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Set up real-time subscription for new notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const markAsReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", id)
+        .eq("user_id", user?.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
+    },
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", user?.id)
+        .eq("read", false);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
+    },
+  });
+
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user?.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["unread-notifications-count"] });
+    },
+  });
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: async (newPreferences: any) => {
+      if (!user) return;
+      
+      const { error } = await supabase
+        .from("notification_preferences")
+        .upsert({
+          user_id: user.id,
+          ...newPreferences,
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notification-preferences", user?.id] });
+    },
+  });
+
+  const [localPreferences, setLocalPreferences] = useState({
+    email: preferences?.email_enabled ?? true,
+    push: preferences?.push_enabled ?? false,
+    events: preferences?.events_enabled ?? true,
+    tasks: preferences?.tasks_enabled ?? true,
+    messages: preferences?.messages_enabled ?? true,
+    members: preferences?.members_enabled ?? true,
+    announcements: preferences?.announcements_enabled ?? true,
+  });
+
+  useEffect(() => {
+    if (preferences) {
+      setLocalPreferences({
+        email: preferences.email_enabled ?? true,
+        push: preferences.push_enabled ?? false,
+        events: preferences.events_enabled ?? true,
+        tasks: preferences.tasks_enabled ?? true,
+        messages: preferences.messages_enabled ?? true,
+        members: preferences.members_enabled ?? true,
+        announcements: preferences.announcements_enabled ?? true,
+      });
+    }
+  }, [preferences]);
+
   const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    markAsReadMutation.mutate(id);
   };
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllAsReadMutation.mutate();
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    deleteNotificationMutation.mutate(id);
   };
 
-  const clearAll = () => {
-    setNotifications([]);
+  const savePreferences = () => {
+    updatePreferencesMutation.mutate({
+      email_enabled: localPreferences.email,
+      push_enabled: localPreferences.push,
+      events_enabled: localPreferences.events,
+      tasks_enabled: localPreferences.tasks,
+      messages_enabled: localPreferences.messages,
+      members_enabled: localPreferences.members,
+      announcements_enabled: localPreferences.announcements,
+    });
   };
 
   return (
@@ -119,16 +248,18 @@ export default function Notifications() {
             </p>
           </div>
           <div className="flex gap-2">
+            {isAdminOrEBoard && (
+              <SendAnnouncementDialog>
+                <Button variant="hero" size="sm">
+                  <Megaphone className="w-4 h-4 mr-2" />
+                  Send Announcement
+                </Button>
+              </SendAnnouncementDialog>
+            )}
             {unreadCount > 0 && (
-              <Button variant="outline" onClick={markAllAsRead}>
+              <Button variant="outline" onClick={markAllAsRead} disabled={markAllAsReadMutation.isPending}>
                 <Check className="w-4 h-4 mr-2" />
                 Mark all as read
-              </Button>
-            )}
-            {notifications.length > 0 && (
-              <Button variant="outline" onClick={clearAll}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Clear all
               </Button>
             )}
           </div>
@@ -150,7 +281,13 @@ export default function Notifications() {
                 </div>
               </CardHeader>
               <CardContent>
-                {notifications.length === 0 ? (
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-20 bg-secondary/30 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : notifications.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>No notifications</p>
@@ -160,11 +297,15 @@ export default function Notifications() {
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${
+                        className={`flex items-start gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
                           notification.read
                             ? "bg-background border-border"
                             : "bg-primary/5 border-primary/20"
                         }`}
+                        onClick={() => {
+                          if (!notification.read) markAsRead(notification.id);
+                          if (notification.link) window.open(notification.link, "_blank");
+                        }}
                       >
                         <div className="mt-0.5">
                           {getNotificationIcon(notification.type)}
@@ -176,10 +317,10 @@ export default function Notifications() {
                                 {notification.title}
                               </p>
                               <p className="text-sm text-muted-foreground mt-1">
-                                {notification.description}
+                                {notification.message}
                               </p>
                               <p className="text-xs text-muted-foreground mt-2">
-                                {notification.time}
+                                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                               </p>
                             </div>
                             <div className="flex gap-1">
@@ -188,7 +329,10 @@ export default function Notifications() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  onClick={() => markAsRead(notification.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(notification.id);
+                                  }}
                                 >
                                   <Check className="w-4 h-4" />
                                 </Button>
@@ -197,7 +341,10 @@ export default function Notifications() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => deleteNotification(notification.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification.id);
+                                }}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -231,15 +378,28 @@ export default function Notifications() {
                   </h4>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
+                      <Label htmlFor="announcements" className="flex items-center gap-2">
+                        <Megaphone className="w-4 h-4 text-primary" />
+                        Announcements
+                      </Label>
+                      <Switch
+                        id="announcements"
+                        checked={localPreferences.announcements}
+                        onCheckedChange={(checked) =>
+                          setLocalPreferences((p) => ({ ...p, announcements: checked }))
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
                       <Label htmlFor="events" className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-primary" />
                         Events
                       </Label>
                       <Switch
                         id="events"
-                        checked={preferences.events}
+                        checked={localPreferences.events}
                         onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, events: checked }))
+                          setLocalPreferences((p) => ({ ...p, events: checked }))
                         }
                       />
                     </div>
@@ -250,9 +410,9 @@ export default function Notifications() {
                       </Label>
                       <Switch
                         id="tasks"
-                        checked={preferences.tasks}
+                        checked={localPreferences.tasks}
                         onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, tasks: checked }))
+                          setLocalPreferences((p) => ({ ...p, tasks: checked }))
                         }
                       />
                     </div>
@@ -263,9 +423,9 @@ export default function Notifications() {
                       </Label>
                       <Switch
                         id="messages"
-                        checked={preferences.messages}
+                        checked={localPreferences.messages}
                         onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, messages: checked }))
+                          setLocalPreferences((p) => ({ ...p, messages: checked }))
                         }
                       />
                     </div>
@@ -276,9 +436,9 @@ export default function Notifications() {
                       </Label>
                       <Switch
                         id="members"
-                        checked={preferences.members}
+                        checked={localPreferences.members}
                         onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, members: checked }))
+                          setLocalPreferences((p) => ({ ...p, members: checked }))
                         }
                       />
                     </div>
@@ -296,9 +456,9 @@ export default function Notifications() {
                       <Label htmlFor="email">Email notifications</Label>
                       <Switch
                         id="email"
-                        checked={preferences.email}
+                        checked={localPreferences.email}
                         onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, email: checked }))
+                          setLocalPreferences((p) => ({ ...p, email: checked }))
                         }
                       />
                     </div>
@@ -306,16 +466,24 @@ export default function Notifications() {
                       <Label htmlFor="push">Push notifications</Label>
                       <Switch
                         id="push"
-                        checked={preferences.push}
-                        onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, push: checked }))
-                        }
+                        checked={localPreferences.push}
+                        onCheckedChange={(checked) => {
+                          setLocalPreferences((p) => ({ ...p, push: checked }));
+                          if (checked) {
+                            // Request notification permission
+                            if ("Notification" in window && Notification.permission === "default") {
+                              Notification.requestPermission();
+                            }
+                          }
+                        }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <Button className="w-full mt-4">Save Preferences</Button>
+                <Button className="w-full mt-4" onClick={savePreferences} disabled={updatePreferencesMutation.isPending}>
+                  {updatePreferencesMutation.isPending ? "Saving..." : "Save Preferences"}
+                </Button>
               </CardContent>
             </Card>
           </div>
