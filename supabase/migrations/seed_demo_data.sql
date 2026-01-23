@@ -128,27 +128,13 @@ BEGIN
     'alumni'::public.app_role
   );
 
-  -- Store IDs in a temp table for use in subsequent inserts
-  CREATE TEMP TABLE IF NOT EXISTS demo_user_ids (
-    email TEXT PRIMARY KEY,
-    user_id UUID NOT NULL
-  );
-
-  DELETE FROM demo_user_ids; -- Clear any existing data
-
-  INSERT INTO demo_user_ids VALUES
-    ('admin@example.com', COALESCE(admin_id, '00000000-0000-0000-0000-000000000001'::UUID)),
-    ('eboard@example.com', COALESCE(eboard_id, '00000000-0000-0000-0000-000000000002'::UUID)),
-    ('chair@example.com', COALESCE(chair_id, '00000000-0000-0000-0000-000000000003'::UUID)),
-    ('member1@example.com', COALESCE(member1_id, '00000000-0000-0000-0000-000000000004'::UUID)),
-    ('member2@example.com', COALESCE(member2_id, '00000000-0000-0000-0000-000000000005'::UUID)),
-    ('alumni@example.com', COALESCE(alumni_id, '00000000-0000-0000-0000-000000000006'::UUID));
+  -- Note: IDs are stored in variables but we'll query auth.users directly in subsequent inserts
 END $$;
 
 -- Create alumni record
 INSERT INTO public.alumni (profile_id, occupation, location, notes)
-SELECT user_id, 'Software Engineer', 'Atlanta, GA', 'Active mentor for undergraduate chapter.'
-FROM demo_user_ids WHERE email = 'alumni@example.com'
+SELECT id, 'Software Engineer', 'Atlanta, GA', 'Active mentor for undergraduate chapter.'
+FROM auth.users WHERE email = 'alumni@example.com'
 ON CONFLICT (profile_id) DO UPDATE SET
   occupation = EXCLUDED.occupation,
   location = EXCLUDED.location,
@@ -166,8 +152,8 @@ SELECT
   'Student Union Room 101',
   NOW() + INTERVAL '3 days',
   NOW() + INTERVAL '3 days' + INTERVAL '2 hours',
-  user_id
-FROM demo_user_ids WHERE email = 'eboard@example.com'
+  id
+FROM auth.users WHERE email = 'eboard@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -178,8 +164,8 @@ SELECT
   'Community Center',
   NOW() + INTERVAL '7 days',
   NOW() + INTERVAL '7 days' + INTERVAL '4 hours',
-  user_id
-FROM demo_user_ids WHERE email = 'chair@example.com'
+  id
+FROM auth.users WHERE email = 'chair@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -190,8 +176,8 @@ SELECT
   'Campus Ballroom',
   NOW() + INTERVAL '14 days',
   NOW() + INTERVAL '14 days' + INTERVAL '3 hours',
-  user_id
-FROM demo_user_ids WHERE email = 'admin@example.com'
+  id
+FROM auth.users WHERE email = 'admin@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -201,33 +187,33 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.attendance (event_id, user_id, checked_in_at)
 SELECT 
   e.id,
-  m.user_id,
+  u.id,
   NOW() - INTERVAL '1 hour'
 FROM public.events e
-CROSS JOIN demo_user_ids m
-WHERE e.title = 'Interest Meeting' AND m.email = 'member1@example.com'
+CROSS JOIN auth.users u
+WHERE e.title = 'Interest Meeting' AND u.email = 'member1@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.attendance (event_id, user_id, checked_in_at)
 SELECT 
   e.id,
-  m.user_id,
+  u.id,
   NOW() - INTERVAL '50 minutes'
 FROM public.events e
-CROSS JOIN demo_user_ids m
-WHERE e.title = 'Interest Meeting' AND m.email = 'member2@example.com'
+CROSS JOIN auth.users u
+WHERE e.title = 'Interest Meeting' AND u.email = 'member2@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.attendance (event_id, user_id, checked_in_at)
 SELECT 
   e.id,
-  m.user_id,
+  u.id,
   NOW() - INTERVAL '2 days'
 FROM public.events e
-CROSS JOIN demo_user_ids m
-WHERE e.title = 'Service Day' AND m.email = 'member1@example.com'
+CROSS JOIN auth.users u
+WHERE e.title = 'Service Day' AND u.email = 'member1@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -239,16 +225,16 @@ INSERT INTO public.channels (id, name, created_by)
 SELECT 
   gen_random_uuid(),
   'General',
-  user_id
-FROM demo_user_ids WHERE email = 'eboard@example.com'
+  id
+FROM auth.users WHERE email = 'eboard@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.channels (id, name, created_by)
 SELECT 
   gen_random_uuid(),
   'Events & Announcements',
-  user_id
-FROM demo_user_ids WHERE email = 'admin@example.com'
+  id
+FROM auth.users WHERE email = 'admin@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -261,11 +247,11 @@ SELECT
   'Book venue for Interest Meeting',
   'Confirm reservation and A/V setup.',
   'in_progress',
-  eboard.user_id,
-  member1.user_id,
+  eboard.id,
+  member1.id,
   NOW() + INTERVAL '2 days'
-FROM demo_user_ids eboard
-CROSS JOIN demo_user_ids member1
+FROM auth.users eboard
+CROSS JOIN auth.users member1
 WHERE eboard.email = 'eboard@example.com' AND member1.email = 'member1@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
@@ -276,11 +262,11 @@ SELECT
   'Design flyers',
   'Create marketing materials for upcoming events.',
   'todo',
-  chair.user_id,
-  member2.user_id,
+  chair.id,
+  member2.id,
   NOW() + INTERVAL '5 days'
-FROM demo_user_ids chair
-CROSS JOIN demo_user_ids member2
+FROM auth.users chair
+CROSS JOIN auth.users member2
 WHERE chair.email = 'chair@example.com' AND member2.email = 'member2@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
@@ -293,16 +279,16 @@ INSERT INTO public.document_folders (id, name, created_by)
 SELECT 
   gen_random_uuid(),
   'Chapter Documents',
-  user_id
-FROM demo_user_ids WHERE email = 'admin@example.com'
+  id
+FROM auth.users WHERE email = 'admin@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.document_folders (id, name, created_by)
 SELECT 
   gen_random_uuid(),
   'Member Resources',
-  user_id
-FROM demo_user_ids WHERE email = 'eboard@example.com'
+  id
+FROM auth.users WHERE email = 'eboard@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.documents (id, folder_id, name, file_path, file_type, file_size, visibility, created_by, shared_with_roles)
@@ -314,10 +300,10 @@ SELECT
   'application/pdf',
   120000,
   'public',
-  admin.user_id,
+  admin.id,
   ARRAY['member','alumni']
 FROM public.document_folders f
-CROSS JOIN demo_user_ids admin
+CROSS JOIN auth.users admin
 WHERE f.name = 'Chapter Documents' AND admin.email = 'admin@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
@@ -331,10 +317,10 @@ SELECT
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   45000,
   'shared',
-  eboard.user_id,
+  eboard.id,
   ARRAY['e_board','committee_chairman']
 FROM public.document_folders f
-CROSS JOIN demo_user_ids eboard
+CROSS JOIN auth.users eboard
 WHERE f.name = 'Member Resources' AND eboard.email = 'eboard@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
@@ -346,25 +332,25 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.notifications (id, user_id, title, body, type, read, created_at)
 SELECT 
   gen_random_uuid(),
-  user_id,
+  id,
   'Welcome to KappaKonnect',
   'This is a demo notification to showcase the notifications system.',
   'announcement',
   FALSE,
   NOW() - INTERVAL '1 day'
-FROM demo_user_ids WHERE email = 'member1@example.com'
+FROM auth.users WHERE email = 'member1@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.notifications (id, user_id, title, body, type, read, created_at)
 SELECT 
   gen_random_uuid(),
-  user_id,
+  id,
   'Service Day Reminder',
   'Don''t forget to check in using the QR code at the event.',
   'reminder',
   FALSE,
   NOW() - INTERVAL '2 hours'
-FROM demo_user_ids WHERE email = 'member2@example.com'
+FROM auth.users WHERE email = 'member2@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -372,15 +358,15 @@ ON CONFLICT DO NOTHING;
 -- ============================================
 
 INSERT INTO public.notification_preferences (user_id, email_enabled, push_enabled)
-SELECT user_id, TRUE, TRUE
-FROM demo_user_ids WHERE email = 'member1@example.com'
+SELECT id, TRUE, TRUE
+FROM auth.users WHERE email = 'member1@example.com'
 ON CONFLICT (user_id) DO UPDATE SET
   email_enabled = EXCLUDED.email_enabled,
   push_enabled = EXCLUDED.push_enabled;
 
 INSERT INTO public.notification_preferences (user_id, email_enabled, push_enabled)
-SELECT user_id, TRUE, FALSE
-FROM demo_user_ids WHERE email = 'member2@example.com'
+SELECT id, TRUE, FALSE
+FROM auth.users WHERE email = 'member2@example.com'
 ON CONFLICT (user_id) DO UPDATE SET
   email_enabled = EXCLUDED.email_enabled,
   push_enabled = EXCLUDED.push_enabled;
