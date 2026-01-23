@@ -11,10 +11,14 @@ CREATE TYPE public.app_role_new AS ENUM (
 );
 
 -- Step 2: Update user_roles table to use new enum
+-- First, drop the default constraint
+ALTER TABLE public.user_roles 
+  ALTER COLUMN role DROP DEFAULT;
+
+-- Step 3: Map old values to new values (convert to text first)
 ALTER TABLE public.user_roles 
   ALTER COLUMN role TYPE text USING role::text;
 
--- Step 3: Map old values to new values
 UPDATE public.user_roles 
 SET role = CASE 
   WHEN role = 'officer' THEN 'e_board'
@@ -25,7 +29,11 @@ END;
 ALTER TABLE public.user_roles 
   ALTER COLUMN role TYPE public.app_role_new USING role::public.app_role_new;
 
--- Step 5: Drop old enum and rename new one
+-- Step 5: Restore the default with the new enum type
+ALTER TABLE public.user_roles 
+  ALTER COLUMN role SET DEFAULT 'member'::public.app_role_new;
+
+-- Step 6: Drop old enum and rename new one
 DROP TYPE IF EXISTS public.app_role;
 ALTER TYPE public.app_role_new RENAME TO app_role;
 
