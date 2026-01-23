@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,12 +30,15 @@ const Auth = () => {
 
   const { signIn, signUp, user, resendConfirmationEmail } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = (location.state as { from?: Location })?.from;
+  const redirectPath = fromState ? `${fromState.pathname}${fromState.search || ""}` : "/";
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate(redirectPath, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, redirectPath]);
 
   /**
    * Validates the form using Zod schemas
@@ -86,7 +89,7 @@ const Auth = () => {
           }
         } else {
           toast.success("Welcome back! You have successfully logged in.");
-          navigate("/");
+          navigate(redirectPath, { replace: true });
         }
       } else {
         const { error } = await signUp(email, password, fullName);
