@@ -103,11 +103,6 @@
       "permanent": false
     },
     {
-      "source": "/.env.*",
-      "destination": "/404",
-      "permanent": false
-    },
-    {
       "source": "/.git",
       "destination": "/404",
       "permanent": false
