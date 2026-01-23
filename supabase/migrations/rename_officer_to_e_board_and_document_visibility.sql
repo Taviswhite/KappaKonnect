@@ -2,20 +2,28 @@
 -- This migration handles the complete role rename and document visibility system
 
 -- Step 1: Create new enum with e_board instead of officer
-CREATE TYPE public.app_role_new AS ENUM (
-    'admin',
-    'e_board',
-    'committee_chairman',
-    'member',
-    'alumni'
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role_new') THEN
+    CREATE TYPE public.app_role_new AS ENUM (
+        'admin',
+        'e_board',
+        'committee_chairman',
+        'member',
+        'alumni'
+    );
+  END IF;
+END $$;
 
--- Step 2: Update user_roles table to use new enum
+-- Step 2: Drop the has_role function that depends on the old enum
+DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
+
+-- Step 3: Update user_roles table to use new enum
 -- First, drop the default constraint
 ALTER TABLE public.user_roles 
   ALTER COLUMN role DROP DEFAULT;
 
--- Step 3: Map old values to new values (convert to text first)
+-- Step 4: Map old values to new values (convert to text first)
 ALTER TABLE public.user_roles 
   ALTER COLUMN role TYPE text USING role::text;
 
@@ -25,19 +33,21 @@ SET role = CASE
   ELSE role
 END;
 
--- Step 4: Change column type to new enum
+-- Step 5: Change column type to new enum
 ALTER TABLE public.user_roles 
   ALTER COLUMN role TYPE public.app_role_new USING role::public.app_role_new;
 
--- Step 5: Restore the default with the new enum type
+-- Step 6: Restore the default with the new enum type
 ALTER TABLE public.user_roles 
   ALTER COLUMN role SET DEFAULT 'member'::public.app_role_new;
 
--- Step 6: Drop old enum and rename new one
-DROP TYPE IF EXISTS public.app_role;
+-- Step 7: Drop old enum (CASCADE will handle dependencies)
+DROP TYPE IF EXISTS public.app_role CASCADE;
+
+-- Step 8: Rename new enum to app_role
 ALTER TYPE public.app_role_new RENAME TO app_role;
 
--- Step 6: Update has_role function
+-- Step 9: Recreate has_role function with renamed enum
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -51,24 +61,24 @@ AS $$
   )
 $$;
 
--- Step 7: Add visibility and sharing fields to documents table
+-- Step 10: Add visibility and sharing fields to documents table
 ALTER TABLE public.documents 
   ADD COLUMN IF NOT EXISTS visibility text DEFAULT 'private' CHECK (visibility IN ('public', 'private', 'shared')),
   ADD COLUMN IF NOT EXISTS shared_with uuid[] DEFAULT ARRAY[]::uuid[],
   ADD COLUMN IF NOT EXISTS shared_with_roles text[] DEFAULT ARRAY[]::text[];
 
--- Step 8: Update existing documents to be private by default
+-- Step 11: Update existing documents to be private by default
 UPDATE public.documents 
 SET visibility = 'private' 
 WHERE visibility IS NULL;
 
--- Step 9: Drop old document policies
+-- Step 12: Drop old document policies
 DROP POLICY IF EXISTS "Authenticated users can view documents" ON public.documents;
 DROP POLICY IF EXISTS "Authenticated users can create documents" ON public.documents;
 DROP POLICY IF EXISTS "Officers and admins can create documents" ON public.documents;
 DROP POLICY IF EXISTS "Officers and admins can update documents" ON public.documents;
 
--- Step 10: Create new document visibility policies
+-- Step 13: Create new document visibility policies
 -- View policy: Users can see public documents, their own private documents, and documents shared with them
 CREATE POLICY "Users can view visible documents"
     ON public.documents FOR SELECT
@@ -140,7 +150,7 @@ CREATE POLICY "Users can delete documents"
         OR public.has_role(auth.uid(), 'admin'::public.app_role)
     );
 
--- Step 11: Update all RLS policies that reference 'officer' to use 'e_board'
+-- Step 14: Update all RLS policies that reference 'officer' to use 'e_board'
 -- Events policies
 DROP POLICY IF EXISTS "Officers and admins can create events" ON public.events;
 CREATE POLICY "E-Board and admins can create events"
