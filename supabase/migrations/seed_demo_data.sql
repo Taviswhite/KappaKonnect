@@ -344,7 +344,7 @@ ON CONFLICT DO NOTHING;
 -- STEP 8: CREATE NOTIFICATIONS
 -- ============================================
 
-INSERT INTO public.notifications (id, user_id, title, body, type, read, created_at)
+INSERT INTO public.notifications (id, user_id, title, message, type, read, created_at)
 SELECT 
   gen_random_uuid(),
   id,
@@ -356,7 +356,7 @@ SELECT
 FROM auth.users WHERE email = 'member1@example.com'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.notifications (id, user_id, title, body, type, read, created_at)
+INSERT INTO public.notifications (id, user_id, title, message, type, read, created_at)
 SELECT 
   gen_random_uuid(),
   id,
