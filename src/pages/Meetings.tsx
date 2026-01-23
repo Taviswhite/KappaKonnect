@@ -17,13 +17,14 @@ const typeColors = {
 };
 
 const Meetings = () => {
-  // Fetch events from database
-  const { data: events = [], isLoading } = useQuery({
+  // Fetch only chapter-specific meetings (not general events)
+  const { data: meetings = [], isLoading } = useQuery({
     queryKey: ["meetings"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
         .select("*")
+        .in("event_type", ["meeting", "executive", "committee"])
         .order("start_time", { ascending: true });
       if (error) throw error;
       return data;
@@ -32,8 +33,8 @@ const Meetings = () => {
 
   // Separate upcoming and past meetings
   const now = new Date();
-  const upcomingMeetings = events.filter((e) => !isPast(parseISO(e.start_time)));
-  const pastMeetings = events.filter((e) => isPast(parseISO(e.start_time))).slice(0, 5);
+  const upcomingMeetings = meetings.filter((e) => !isPast(parseISO(e.start_time)));
+  const pastMeetings = meetings.filter((e) => isPast(parseISO(e.start_time))).slice(0, 5);
 
   return (
     <AppLayout>
