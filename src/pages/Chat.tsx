@@ -239,6 +239,12 @@ const Chat = () => {
     setMessage(message + randomEmoji);
   };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || !selectedChannelId) return;
+    sendMessageMutation.mutate(message.trim());
+  };
+
   const selectedChannel = channels.find((c) => c.id === selectedChannelId);
 
   return (
