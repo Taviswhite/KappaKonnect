@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Bell, 
   Calendar, 
-  CreditCard, 
   MessageSquare, 
   CheckSquare, 
   Users,
@@ -20,7 +19,7 @@ import { useState } from "react";
 
 interface Notification {
   id: string;
-  type: "event" | "payment" | "task" | "message" | "member";
+  type: "event" | "task" | "message" | "member";
   title: string;
   description: string;
   time: string;
@@ -45,14 +44,6 @@ const mockNotifications: Notification[] = [
     read: false,
   },
   {
-    id: "3",
-    type: "payment",
-    title: "Payment Reminder",
-    description: "Your dues payment is due in 3 days",
-    time: "1 day ago",
-    read: false,
-  },
-  {
     id: "4",
     type: "message",
     title: "New Message from John",
@@ -74,8 +65,6 @@ const getNotificationIcon = (type: Notification["type"]) => {
   switch (type) {
     case "event":
       return <Calendar className="w-5 h-5 text-primary" />;
-    case "payment":
-      return <CreditCard className="w-5 h-5 text-amber-500" />;
     case "task":
       return <CheckSquare className="w-5 h-5 text-green-500" />;
     case "message":
@@ -89,7 +78,6 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState(mockNotifications);
   const [preferences, setPreferences] = useState({
     events: true,
-    payments: true,
     tasks: true,
     messages: true,
     members: true,
@@ -252,19 +240,6 @@ export default function Notifications() {
                         checked={preferences.events}
                         onCheckedChange={(checked) =>
                           setPreferences((p) => ({ ...p, events: checked }))
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="payments" className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-amber-500" />
-                        Payments
-                      </Label>
-                      <Switch
-                        id="payments"
-                        checked={preferences.payments}
-                        onCheckedChange={(checked) =>
-                          setPreferences((p) => ({ ...p, payments: checked }))
                         }
                       />
                     </div>

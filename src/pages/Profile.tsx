@@ -30,6 +30,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 export default function Profile() {
   const { profile, roles, user } = useAuth();
@@ -58,11 +59,11 @@ export default function Profile() {
         phone: profile.phone || "",
         committee: profile.committee || "",
         graduation_year: profile.graduation_year?.toString() || "",
-        linkedin_url: (profile as any).linkedin_url || "",
-        bio: (profile as any).bio || "",
-        crossing_year: (profile as any).crossing_year?.toString() || "",
-        line_name: (profile as any).line_name || "",
-        chapter: (profile as any).chapter || "",
+        linkedin_url: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.linkedin_url || "",
+        bio: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.bio || "",
+        crossing_year: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.crossing_year?.toString() || "",
+        line_name: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.line_name || "",
+        chapter: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.chapter || "",
       });
     }
   }, [profile]);
@@ -102,10 +103,10 @@ export default function Profile() {
         title: "Profile Updated",
         description: "Your profile has been saved successfully.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     } finally {

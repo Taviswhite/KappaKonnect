@@ -37,7 +37,6 @@ export default function Settings() {
     email: true,
     push: true,
     events: true,
-    payments: true,
     tasks: true,
   });
 
@@ -248,20 +247,6 @@ export default function Settings() {
                       checked={notifications.events}
                       onCheckedChange={(checked) =>
                         setNotifications((p) => ({ ...p, events: checked }))
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20">
-                    <div className="space-y-0.5">
-                      <Label>Payment Reminders</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Get notified about payment due dates
-                      </p>
-                    </div>
-                    <Switch
-                      checked={notifications.payments}
-                      onCheckedChange={(checked) =>
-                        setNotifications((p) => ({ ...p, payments: checked }))
                       }
                     />
                   </div>

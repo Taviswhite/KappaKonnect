@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ListTodo } from "lucide-react";
@@ -78,7 +79,7 @@ export function CreateTaskDialog({ children }: CreateTaskDialogProps) {
         assignedTo = data.assigned_to;
       }
 
-      const taskData: any = {
+      const taskData: Database["public"]["Tables"]["tasks"]["Insert"] = {
         title: data.title,
         description: data.description || null,
         priority: data.priority,

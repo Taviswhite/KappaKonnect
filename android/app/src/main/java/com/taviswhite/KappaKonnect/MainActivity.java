@@ -1,4 +1,4 @@
-package com.taviswhite.KappaConnect;
+package com.taviswhite.KappaKonnect;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -136,13 +136,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isEmail = identifier.includes('@');
     
     // Check if identifier is a phone number (contains mostly digits, may have +, -, spaces, parentheses)
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const phoneRegex = /^[\d\s+()-]+$/;
     const isPhone = phoneRegex.test(identifier.replace(/\s/g, '')) && identifier.replace(/\D/g, '').length >= 10;
     
     // If not an email, try to look up the email from profiles
     if (!isEmail) {
       try {
-        let profileQuery = supabase
+        const profileQuery = supabase
           .from('profiles')
           .select('email')
           .limit(1);

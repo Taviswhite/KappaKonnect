@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.taviswhite.KappaConnect"
+    namespace = "com.taviswhite.KappaKonnect"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.taviswhite.KappaConnect"
+        applicationId "com.taviswhite.KappaKonnect"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

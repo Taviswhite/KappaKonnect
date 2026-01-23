@@ -115,12 +115,12 @@ const Auth = () => {
         <div className="text-center mb-6 sm:mb-8">
           <img 
             src={logo} 
-            alt="KappaConnect Logo" 
+            alt="KappaKonnect Logo" 
             className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl object-cover shadow-lg mb-4"
             loading="lazy"
             decoding="async"
           />
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">KappaConnect</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">KappaKonnect</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">Fraternity Management Portal</p>
         </div>
 

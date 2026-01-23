@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.taviswhite.KappaConnect',
-  appName: 'KappaConnect',
+  appId: 'com.taviswhite.KappaKonnect',
+  appName: 'KappaKonnect',
   webDir: 'dist',
 };
 

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { CreateTaskDialog } from "@/components/dialogs/CreateTaskDialog";
 
@@ -154,7 +155,7 @@ const Tasks = () => {
 };
 
 // Task Card Component with Status Cycling
-function TaskCard({ task, onStatusChange }: { task: any; onStatusChange: () => void }) {
+function TaskCard({ task, onStatusChange }: { task: Database["public"]["Tables"]["tasks"]["Row"]; onStatusChange: () => void }) {
   const queryClient = useQueryClient();
 
   const statusCycle: Record<string, string> = {

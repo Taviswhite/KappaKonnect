@@ -74,8 +74,8 @@ export default defineConfig(({ mode }) => {
           ],
         },
         manifest: {
-          name: "KappaConnect",
-          short_name: "KappaConnect",
+          name: "KappaKonnect",
+          short_name: "KappaKonnect",
           display: "standalone",
           start_url: "/",
           theme_color: "#0f172a",

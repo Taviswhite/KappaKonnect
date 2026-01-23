@@ -1,13 +1,12 @@
-# KappaConnect
+# KappaKonnect
 
-A modern fraternity management portal built with React, TypeScript, and Supabase. Manage events, members, tasks, payments, attendance, and more in one centralized platform.
+A modern fraternity management portal built with React, TypeScript, and Supabase. Manage events, members, tasks, attendance, and more in one centralized platform.
 
 ## 🚀 Features
 
 - **Member Management** - Track active members, alumni, and roles
 - **Event Management** - Create and manage chapter events
 - **Task Management** - Assign and track tasks with due dates
-- **Payment Tracking** - Monitor dues and payments
 - **Attendance System** - QR code-based attendance tracking
 - **Document Management** - Store and organize chapter documents
 - **Real-time Chat** - Communicate with chapter members

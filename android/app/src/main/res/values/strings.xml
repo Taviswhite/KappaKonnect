@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">KappaConnect</string>
-    <string name="title_activity_main">KappaConnect</string>
-    <string name="package_name">com.taviswhite.KappaConnect</string>
-    <string name="custom_url_scheme">com.taviswhite.KappaConnect</string>
+    <string name="app_name">KappaKonnect</string>
+    <string name="title_activity_main">KappaKonnect</string>
+    <string name="package_name">com.taviswhite.KappaKonnect</string>
+    <string name="custom_url_scheme">com.taviswhite.KappaKonnect</string>
 </resources>

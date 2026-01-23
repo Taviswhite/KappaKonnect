@@ -98,7 +98,7 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
               "transition-all duration-300 overflow-hidden",
               collapsed && !mobileOpen ? "w-0 opacity-0" : "w-auto opacity-100"
             )}>
-              <h1 className="font-display font-bold text-lg text-foreground whitespace-nowrap">KappaConnect</h1>
+              <h1 className="font-display font-bold text-lg text-foreground whitespace-nowrap">KappaKonnect</h1>
               <p className="text-xs text-muted-foreground whitespace-nowrap">Fraternity Portal</p>
             </div>
           </div>
