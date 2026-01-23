@@ -306,14 +306,14 @@ SELECT
 FROM auth.users WHERE email = 'eboard@example.com'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.documents (id, folder_id, name, file_path, file_type, file_size, visibility, created_by, shared_with_roles)
+INSERT INTO public.documents (id, folder_id, name, file_type, file_size, file_url, visibility, created_by, shared_with_roles)
 SELECT 
   gen_random_uuid(),
   f.id,
   'Chapter Bylaws.pdf',
-  'documents/chapter-bylaws.pdf',
   'application/pdf',
-  120000,
+  '120000',
+  'documents/chapter-bylaws.pdf',
   'public',
   admin.id,
   ARRAY['member','alumni']
@@ -323,14 +323,14 @@ WHERE f.name = 'Chapter Documents' AND admin.email = 'admin@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.documents (id, folder_id, name, file_path, file_type, file_size, visibility, created_by, shared_with_roles)
+INSERT INTO public.documents (id, folder_id, name, file_type, file_size, file_url, visibility, created_by, shared_with_roles)
 SELECT 
   gen_random_uuid(),
   f.id,
   'Interest Meeting Agenda.docx',
-  'documents/interest-meeting-agenda.docx',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  45000,
+  '45000',
+  'documents/interest-meeting-agenda.docx',
   'shared',
   eboard.id,
   ARRAY['e_board','committee_chairman']
