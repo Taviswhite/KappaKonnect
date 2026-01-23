@@ -42,21 +42,25 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.channel_members ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for channels
+DROP POLICY IF EXISTS "Anyone can view public channels" ON public.channels;
 CREATE POLICY "Anyone can view public channels"
     ON public.channels FOR SELECT
     USING (is_private = false OR created_by = auth.uid());
 
+DROP POLICY IF EXISTS "Authenticated users can create channels" ON public.channels;
 CREATE POLICY "Authenticated users can create channels"
     ON public.channels FOR INSERT
     TO authenticated
     WITH CHECK (auth.uid() = created_by);
 
+DROP POLICY IF EXISTS "Channel creators can update their channels" ON public.channels;
 CREATE POLICY "Channel creators can update their channels"
     ON public.channels FOR UPDATE
     TO authenticated
     USING (created_by = auth.uid());
 
 -- RLS Policies for messages
+DROP POLICY IF EXISTS "Users can view messages in accessible channels" ON public.messages;
 CREATE POLICY "Users can view messages in accessible channels"
     ON public.messages FOR SELECT
     USING (
@@ -67,6 +71,7 @@ CREATE POLICY "Users can view messages in accessible channels"
         )
     );
 
+DROP POLICY IF EXISTS "Authenticated users can send messages" ON public.messages;
 CREATE POLICY "Authenticated users can send messages"
     ON public.messages FOR INSERT
     TO authenticated
@@ -79,17 +84,20 @@ CREATE POLICY "Authenticated users can send messages"
         )
     );
 
+DROP POLICY IF EXISTS "Users can update their own messages" ON public.messages;
 CREATE POLICY "Users can update their own messages"
     ON public.messages FOR UPDATE
     TO authenticated
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their own messages" ON public.messages;
 CREATE POLICY "Users can delete their own messages"
     ON public.messages FOR DELETE
     TO authenticated
     USING (user_id = auth.uid());
 
 -- RLS Policies for channel_members
+DROP POLICY IF EXISTS "Users can view channel members" ON public.channel_members;
 CREATE POLICY "Users can view channel members"
     ON public.channel_members FOR SELECT
     USING (
@@ -100,6 +108,7 @@ CREATE POLICY "Users can view channel members"
         )
     );
 
+DROP POLICY IF EXISTS "Users can join channels" ON public.channel_members;
 CREATE POLICY "Users can join channels"
     ON public.channel_members FOR INSERT
     TO authenticated
