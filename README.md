@@ -33,8 +33,8 @@ A modern fraternity management portal built with React, TypeScript, and Supabase
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
-cd remix-of-crimson-connect
+git clone https://github.com/Taviswhite/KappaKonnect.git
+cd KappaKonnect
 ```
 
 ### 2. Install Dependencies
