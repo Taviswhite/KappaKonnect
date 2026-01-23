@@ -37,7 +37,7 @@ const Members = () => {
   const canEditRoles = hasRole("admin");
 
   // Fetch profiles from database
-  const { data: profiles = [], isLoading } = useQuery({
+  const { data: profiles = [], isLoading, error: profilesError } = useQuery({
     queryKey: ["all-profiles"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -45,8 +45,24 @@ const Members = () => {
         .select("*")
         .order("full_name", { ascending: true });
       
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching profiles:", error);
+        throw error;
+      }
+      
+      // Deduplicate by user_id (keep first occurrence)
+      if (data) {
+        const seen = new Set<string>();
+        return data.filter((profile) => {
+          if (seen.has(profile.user_id)) {
+            return false;
+          }
+          seen.add(profile.user_id);
+          return true;
+        });
+      }
+      
+      return data || [];
     },
   });
 
@@ -76,6 +92,16 @@ const Members = () => {
   );
 
   const totalMembers = profiles.length;
+  
+  // Calculate active members (everyone except alumni)
+  const activeMembers = profiles.filter(
+    (m) => getRoleForUser(m.user_id) !== "alumni"
+  ).length;
+  
+  // Calculate alumni count
+  const alumniCount = profiles.filter(
+    (m) => getRoleForUser(m.user_id) === "alumni"
+  ).length;
 
   return (
     <AppLayout>
@@ -129,11 +155,11 @@ const Members = () => {
             <p className="text-sm text-muted-foreground">Total Members</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
-            <p className="text-2xl font-display font-bold text-foreground">{totalMembers}</p>
+            <p className="text-2xl font-display font-bold text-foreground">{activeMembers}</p>
             <p className="text-sm text-muted-foreground">Active</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
-            <p className="text-2xl font-display font-bold text-foreground">0</p>
+            <p className="text-2xl font-display font-bold text-foreground">{alumniCount}</p>
             <p className="text-sm text-muted-foreground">Alumni</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
@@ -141,6 +167,14 @@ const Members = () => {
             <p className="text-sm text-muted-foreground">New This Year</p>
           </div>
         </div>
+
+        {/* Error State */}
+        {profilesError && (
+          <div className="glass-card rounded-xl p-12 text-center border-destructive border-2">
+            <p className="text-destructive font-semibold mb-2">Error loading members</p>
+            <p className="text-sm text-muted-foreground">{profilesError.message}</p>
+          </div>
+        )}
 
         {/* Members Grid/List */}
         {isLoading ? (

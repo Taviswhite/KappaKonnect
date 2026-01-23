@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { appRoutes } from "./routes";
 import { useNotifications } from "@/hooks/use-notifications";
+import { ThemeProvider } from "next-themes";
 
 // React Query DevTools - uncomment after installing: npm install -D @tanstack/react-query-devtools
 // import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -45,14 +46,16 @@ const AppContent = () => {
 
 const App = () => (
   <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Sonner />
-        <AppContent />
-      </TooltipProvider>
-      {/* Uncomment after installing @tanstack/react-query-devtools */}
-      {/* {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />} */}
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Sonner />
+          <AppContent />
+        </TooltipProvider>
+        {/* Uncomment after installing @tanstack/react-query-devtools */}
+        {/* {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />} */}
+      </QueryClientProvider>
+    </ThemeProvider>
   </ErrorBoundary>
 );
 

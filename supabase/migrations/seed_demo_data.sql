@@ -8,7 +8,7 @@
 -- IMPORTANT: You MUST create auth users before running this script!
 -- 
 -- Go to Supabase Dashboard → Authentication → Add User
--- Create these 6 users with these emails and passwords:
+-- Create these 6 CORE users with these emails and passwords:
 --
 --   1. admin@example.com / DemoAdmin123!
 --   2. eboard@example.com / DemoEBoard123!
@@ -17,7 +17,15 @@
 --   5. member2@example.com / DemoMember123!
 --   6. alumni@example.com / DemoAlumni123!
 --
+-- OPTIONAL: For more members (18 total), also create these auth users:
+--   member3@example.com through member18@example.com (all with password DemoMember123!)
+--
 -- After creating the users, run this script to populate profiles and demo data.
+--
+-- To verify profiles were created, run:
+--   SELECT COUNT(*) FROM public.profiles;
+--   SELECT full_name, email, role FROM public.profiles p
+--   LEFT JOIN public.user_roles ur ON p.user_id = ur.user_id;
 -- ============================================
 
 -- Create a function to safely insert profiles only if auth users exist
@@ -131,6 +139,182 @@ BEGIN
   -- Note: IDs are stored in variables but we'll query auth.users directly in subsequent inserts
 END $$;
 
+-- ============================================
+-- ADDITIONAL MEMBERS (Optional - create auth users first)
+-- ============================================
+-- To add more members, create auth users with these emails in Supabase Dashboard → Authentication:
+-- Then run this section to create their profiles
+-- 
+-- Additional member emails (create these auth users if you want more members):
+--   member3@example.com, member4@example.com, member5@example.com, member6@example.com,
+--   member7@example.com, member8@example.com, member9@example.com, member10@example.com,
+--   member11@example.com, member12@example.com, member13@example.com, member14@example.com,
+--   member15@example.com, member16@example.com, member17@example.com, member18@example.com
+
+-- Create additional member profiles (will skip if auth users don't exist)
+DO $$
+BEGIN
+  -- Member 3 - E-Board
+  PERFORM create_demo_profile(
+    'member3@example.com',
+    'James Wilson',
+    '+15555550007',
+    2017,
+    'Programming',
+    'e_board'::public.app_role
+  );
+
+  -- Member 4 - Committee Chair
+  PERFORM create_demo_profile(
+    'member4@example.com',
+    'Michael Anderson',
+    '+15555550008',
+    2019,
+    'Community Service',
+    'committee_chairman'::public.app_role
+  );
+
+  -- Member 5 - Member
+  PERFORM create_demo_profile(
+    'member5@example.com',
+    'David Thompson',
+    '+15555550009',
+    2021,
+    'Fundraising',
+    'member'::public.app_role
+  );
+
+  -- Member 6 - Member
+  PERFORM create_demo_profile(
+    'member6@example.com',
+    'Christopher Martinez',
+    '+15555550010',
+    2022,
+    'Programming',
+    'member'::public.app_role
+  );
+
+  -- Member 7 - Member
+  PERFORM create_demo_profile(
+    'member7@example.com',
+    'Daniel Garcia',
+    '+15555550011',
+    2023,
+    'Community Service',
+    'member'::public.app_role
+  );
+
+  -- Member 8 - Member
+  PERFORM create_demo_profile(
+    'member8@example.com',
+    'Matthew Rodriguez',
+    '+15555550012',
+    2021,
+    'Fundraising',
+    'member'::public.app_role
+  );
+
+  -- Member 9 - Member
+  PERFORM create_demo_profile(
+    'member9@example.com',
+    'Andrew Lee',
+    '+15555550013',
+    2022,
+    'Programming',
+    'member'::public.app_role
+  );
+
+  -- Member 10 - Member
+  PERFORM create_demo_profile(
+    'member10@example.com',
+    'Joseph Walker',
+    '+15555550014',
+    2023,
+    'Community Service',
+    'member'::public.app_role
+  );
+
+  -- Member 11 - Member
+  PERFORM create_demo_profile(
+    'member11@example.com',
+    'Joshua Hall',
+    '+15555550015',
+    2020,
+    'Fundraising',
+    'member'::public.app_role
+  );
+
+  -- Member 12 - Member
+  PERFORM create_demo_profile(
+    'member12@example.com',
+    'Ryan Young',
+    '+15555550016',
+    2021,
+    'Programming',
+    'member'::public.app_role
+  );
+
+  -- Member 13 - Member
+  PERFORM create_demo_profile(
+    'member13@example.com',
+    'Nicholas King',
+    '+15555550017',
+    2022,
+    'Community Service',
+    'member'::public.app_role
+  );
+
+  -- Member 14 - Member
+  PERFORM create_demo_profile(
+    'member14@example.com',
+    'Tyler Wright',
+    '+15555550018',
+    2023,
+    'Fundraising',
+    'member'::public.app_role
+  );
+
+  -- Member 15 - Member
+  PERFORM create_demo_profile(
+    'member15@example.com',
+    'Brandon Lopez',
+    '+15555550019',
+    2021,
+    'Programming',
+    'member'::public.app_role
+  );
+
+  -- Member 16 - Member
+  PERFORM create_demo_profile(
+    'member16@example.com',
+    'Justin Hill',
+    '+15555550020',
+    2022,
+    'Community Service',
+    'member'::public.app_role
+  );
+
+  -- Member 17 - Member
+  PERFORM create_demo_profile(
+    'member17@example.com',
+    'Jonathan Scott',
+    '+15555550021',
+    2023,
+    'Fundraising',
+    'member'::public.app_role
+  );
+
+  -- Member 18 - Member
+  PERFORM create_demo_profile(
+    'member18@example.com',
+    'Nathan Green',
+    '+15555550022',
+    2020,
+    'Programming',
+    'member'::public.app_role
+  );
+END $$;
+
 -- Create alumni record (using DO block to handle potential conflicts)
 DO $$
 DECLARE
@@ -156,14 +340,83 @@ BEGIN
 END $$;
 
 -- Additional standalone alumni records (not tied to auth.users) to fill Alumni portal
-INSERT INTO public.alumni (full_name, email, graduation_year, current_company, current_position, location, linkedin_url, industry)
-VALUES
-  ('Marcus Johnson', 'marcus.johnson@example.com', 2012, 'TechCorp', 'Senior Software Engineer', 'Atlanta, GA', 'https://linkedin.com/in/marcusjohnson', 'Technology'),
-  ('Derrick Williams', 'derrick.williams@example.com', 2014, 'State University', 'Assistant Dean of Students', 'Chicago, IL', 'https://linkedin.com/in/derrickwilliams', 'Higher Education'),
-  ('Andre Thompson', 'andre.thompson@example.com', 2016, 'City Bank', 'Investment Analyst', 'New York, NY', 'https://linkedin.com/in/andrethompson', 'Finance'),
-  ('Brandon Scott', 'brandon.scott@example.com', 2018, 'Community Impact', 'Program Director', 'Houston, TX', 'https://linkedin.com/in/brandonscott', 'Non‑Profit'),
-  ('Jamal Carter', 'jamal.carter@example.com', 2020, 'HealthFirst', 'Project Manager', 'Los Angeles, CA', 'https://linkedin.com/in/jamalcarter', 'Healthcare')
-ON CONFLICT DO NOTHING;
+-- Use a function with SECURITY DEFINER to bypass RLS
+CREATE OR REPLACE FUNCTION seed_alumni_records() RETURNS void AS $$
+BEGIN
+  -- Clear existing mock alumni first to prevent duplicates
+  DELETE FROM public.alumni 
+  WHERE email LIKE '%@example.com' 
+    AND user_id IS NULL;
+
+  -- Insert alumni records (check for existing email to avoid duplicates)
+  INSERT INTO public.alumni (full_name, email, graduation_year, degree, current_company, current_position, location, linkedin_url, industry)
+  SELECT * FROM (VALUES
+    -- Technology & Engineering
+    ('Marcus Johnson', 'marcus.johnson@example.com', 2012, 'Computer Science', 'TechCorp', 'Senior Software Engineer', 'Atlanta, GA', 'https://linkedin.com/in/marcus-johnson-tech', 'Technology'),
+    ('Kevin Mitchell', 'kevin.mitchell@example.com', 2015, 'Electrical Engineering', 'Google', 'Product Manager', 'San Francisco, CA', 'https://linkedin.com/in/kevin-mitchell-pm', 'Technology'),
+    ('Tyler Brown', 'tyler.brown@example.com', 2017, 'Computer Science', 'Microsoft', 'Cloud Solutions Architect', 'Seattle, WA', 'https://linkedin.com/in/tyler-brown-cloud', 'Technology'),
+    ('Jordan Davis', 'jordan.davis@example.com', 2019, 'Information Systems', 'Amazon', 'Data Engineer', 'Austin, TX', 'https://linkedin.com/in/jordan-davis-data', 'Technology'),
+    ('Devin Taylor', 'devin.taylor@example.com', 2021, 'Software Engineering', 'Meta', 'Frontend Developer', 'Menlo Park, CA', 'https://linkedin.com/in/devin-taylor-dev', 'Technology'),
+    
+    -- Finance & Banking
+    ('Andre Thompson', 'andre.thompson@example.com', 2016, 'Finance', 'City Bank', 'Investment Analyst', 'New York, NY', 'https://linkedin.com/in/andre-thompson-finance', 'Finance'),
+    ('Malik Washington', 'malik.washington@example.com', 2013, 'Business Administration', 'Goldman Sachs', 'Vice President', 'New York, NY', 'https://linkedin.com/in/malik-washington-vp', 'Finance'),
+    ('Cameron Lewis', 'cameron.lewis@example.com', 2018, 'Economics', 'JPMorgan Chase', 'Financial Advisor', 'Chicago, IL', 'https://linkedin.com/in/cameron-lewis-advisor', 'Finance'),
+    ('Isaiah Martinez', 'isaiah.martinez@example.com', 2020, 'Accounting', 'Deloitte', 'Senior Consultant', 'Dallas, TX', 'https://linkedin.com/in/isaiah-martinez-consultant', 'Finance'),
+    
+    -- Healthcare & Medicine
+    ('Jamal Carter', 'jamal.carter@example.com', 2020, 'Public Health', 'HealthFirst', 'Project Manager', 'Los Angeles, CA', 'https://linkedin.com/in/jamal-carter-health', 'Healthcare'),
+    ('Darius Moore', 'darius.moore@example.com', 2014, 'Biology', 'Johns Hopkins Hospital', 'Research Coordinator', 'Baltimore, MD', 'https://linkedin.com/in/darius-moore-research', 'Healthcare'),
+    ('Terrence Jackson', 'terrence.jackson@example.com', 2017, 'Health Sciences', 'Mayo Clinic', 'Healthcare Administrator', 'Rochester, MN', 'https://linkedin.com/in/terrence-jackson-admin', 'Healthcare'),
+    
+    -- Education & Academia
+    ('Derrick Williams', 'derrick.williams@example.com', 2014, 'Education', 'State University', 'Assistant Dean of Students', 'Chicago, IL', 'https://linkedin.com/in/derrick-williams-education', 'Higher Education'),
+    ('Antonio Harris', 'antonio.harris@example.com', 2011, 'Mathematics', 'Howard University', 'Associate Professor', 'Washington, DC', 'https://linkedin.com/in/antonio-harris-professor', 'Higher Education'),
+    ('Reginald Green', 'reginald.green@example.com', 2016, 'History', 'Morehouse College', 'Assistant Professor', 'Atlanta, GA', 'https://linkedin.com/in/reginald-green-history', 'Higher Education'),
+    ('Marcus Wright', 'marcus.wright@example.com', 2019, 'Education', 'Atlanta Public Schools', 'High School Principal', 'Atlanta, GA', 'https://linkedin.com/in/marcus-wright-principal', 'Education'),
+    
+    -- Non-Profit & Community Service
+    ('Brandon Scott', 'brandon.scott@example.com', 2018, 'Social Work', 'Community Impact', 'Program Director', 'Houston, TX', 'https://linkedin.com/in/brandon-scott-nonprofit', 'Non‑Profit'),
+    ('Kendrick Adams', 'kendrick.adams@example.com', 2015, 'Public Administration', 'United Way', 'Community Outreach Manager', 'Detroit, MI', 'https://linkedin.com/in/kendrick-adams-outreach', 'Non‑Profit'),
+    ('Jermaine Foster', 'jermaine.foster@example.com', 2017, 'Social Work', 'Boys & Girls Club', 'Youth Program Coordinator', 'Philadelphia, PA', 'https://linkedin.com/in/jermaine-foster-youth', 'Non‑Profit'),
+    
+    -- Law & Legal
+    ('Tyrone Robinson', 'tyrone.robinson@example.com', 2013, 'Law', 'Robinson & Associates', 'Partner Attorney', 'Washington, DC', 'https://linkedin.com/in/tyrone-robinson-law', 'Legal'),
+    ('Darnell Phillips', 'darnell.phillips@example.com', 2016, 'Law', 'Public Defender Office', 'Public Defender', 'Miami, FL', 'https://linkedin.com/in/darnell-phillips-defender', 'Legal'),
+    ('Rashad Coleman', 'rashad.coleman@example.com', 2019, 'Law', 'Corporate Legal Group', 'Associate Attorney', 'Boston, MA', 'https://linkedin.com/in/rashad-coleman-corporate', 'Legal'),
+    
+    -- Business & Consulting
+    ('Malcolm Turner', 'malcolm.turner@example.com', 2012, 'Business Administration', 'McKinsey & Company', 'Senior Consultant', 'New York, NY', 'https://linkedin.com/in/malcolm-turner-consulting', 'Consulting'),
+    ('Dwayne Patterson', 'dwayne.patterson@example.com', 2015, 'Marketing', 'Procter & Gamble', 'Brand Manager', 'Cincinnati, OH', 'https://linkedin.com/in/dwayne-patterson-marketing', 'Consumer Goods'),
+    ('Trevon Banks', 'trevon.banks@example.com', 2018, 'Business', 'Salesforce', 'Account Executive', 'San Francisco, CA', 'https://linkedin.com/in/trevon-banks-sales', 'Technology'),
+    
+    -- Government & Public Service
+    ('Lamar Hayes', 'lamar.hayes@example.com', 2014, 'Political Science', 'City of Atlanta', 'City Council Member', 'Atlanta, GA', 'https://linkedin.com/in/lamar-hayes-council', 'Government'),
+    ('Quinton Reed', 'quinton.reed@example.com', 2017, 'Public Policy', 'U.S. Department of Education', 'Policy Analyst', 'Washington, DC', 'https://linkedin.com/in/quinton-reed-policy', 'Government'),
+    
+    -- Media & Entertainment
+    ('Jalen Brooks', 'jalen.brooks@example.com', 2016, 'Communications', 'ESPN', 'Sports Analyst', 'Bristol, CT', 'https://linkedin.com/in/jalen-brooks-media', 'Media'),
+    ('Darius King', 'darius.king@example.com', 2019, 'Journalism', 'CNN', 'News Producer', 'Atlanta, GA', 'https://linkedin.com/in/darius-king-journalism', 'Media'),
+    
+    -- Real Estate & Construction
+    ('Marcus Hill', 'marcus.hill@example.com', 2013, 'Business', 'Century 21', 'Real Estate Broker', 'Phoenix, AZ', 'https://linkedin.com/in/marcus-hill-realestate', 'Real Estate'),
+    ('Brandon Young', 'brandon.young@example.com', 2017, 'Civil Engineering', 'Turner Construction', 'Project Manager', 'Denver, CO', 'https://linkedin.com/in/brandon-young-construction', 'Construction'),
+    
+    -- Entrepreneurship
+    ('Kendall James', 'kendall.james@example.com', 2018, 'Business', 'TechStart Solutions', 'Founder & CEO', 'Austin, TX', 'https://linkedin.com/in/kendall-james-founder', 'Technology'),
+    ('Damon Price', 'damon.price@example.com', 2020, 'Business', 'Urban Eats', 'Co-Founder', 'Nashville, TN', 'https://linkedin.com/in/damon-price-entrepreneur', 'Food & Beverage')
+  ) AS v(full_name, email, graduation_year, degree, current_company, current_position, location, linkedin_url, industry)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.alumni a WHERE a.email = v.email
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Execute the function
+SELECT seed_alumni_records();
+
+-- Clean up the function
+DROP FUNCTION IF EXISTS seed_alumni_records();
 
 -- STEP 3: CREATE EVENTS
 -- ============================================
@@ -590,6 +843,56 @@ ON CONFLICT (user_id) DO UPDATE SET
   push_enabled = EXCLUDED.push_enabled;
 
 -- ============================================
+-- VERIFICATION
+-- ============================================
+-- Run these queries in Supabase SQL Editor to verify data was created:
+
+-- Check profile count:
+-- SELECT COUNT(*) as total_profiles FROM public.profiles;
+
+-- Check profiles with roles:
+-- SELECT 
+--   p.full_name,
+--   p.email,
+--   ur.role,
+--   p.committee
+-- FROM public.profiles p
+-- LEFT JOIN public.user_roles ur ON p.user_id = ur.user_id
+-- ORDER BY p.full_name;
+
+-- Check role distribution:
+-- SELECT 
+--   ur.role,
+--   COUNT(*) as count
+-- FROM public.user_roles ur
+-- GROUP BY ur.role
+-- ORDER BY count DESC;
+
+-- Check alumni count:
+-- SELECT COUNT(*) as total_alumni FROM public.alumni;
+
+-- View all alumni:
+-- SELECT 
+--   full_name,
+--   email,
+--   graduation_year,
+--   current_company,
+--   current_position,
+--   location,
+--   industry
+-- FROM public.alumni
+-- ORDER BY graduation_year DESC, full_name;
+
+-- Check alumni by industry:
+-- SELECT 
+--   industry,
+--   COUNT(*) as count
+-- FROM public.alumni
+-- WHERE industry IS NOT NULL
+-- GROUP BY industry
+-- ORDER BY count DESC;
+
+-- ============================================
 -- CLEANUP
 -- ============================================
 
@@ -605,6 +908,18 @@ DROP FUNCTION IF EXISTS create_demo_profile(TEXT, TEXT, TEXT, INTEGER, TEXT, pub
 --   - member1@example.com / DemoMember123! (Member role)
 --   - member2@example.com / DemoMember123! (Member role)
 --   - alumni@example.com / DemoAlumni123! (Alumni role)
+--   - member3@example.com through member18@example.com (if auth users were created)
 --
 -- All pages should now show rich, realistic demo data!
+-- 
+-- If you don't see members on the Members page:
+--   1. Verify auth users exist: Supabase Dashboard → Authentication → Users
+--   2. Verify profiles exist: Run the verification queries above
+--   3. Check RLS policies: Make sure you're logged in when viewing the Members page
+--
+-- If you don't see alumni on the Alumni page:
+--   1. Run the seed script (it creates 30+ alumni records)
+--   2. Verify alumni exist: Run "SELECT COUNT(*) FROM public.alumni;" (should be ~30+)
+--   3. Make sure you're logged in (RLS requires authentication)
+--   4. Check browser console for any errors
 -- ============================================

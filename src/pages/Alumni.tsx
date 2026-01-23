@@ -14,28 +14,57 @@ import { format, parseISO } from "date-fns";
 
 const Alumni = () => {
   const [search, setSearch] = useState("");
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
 
   // Check if user can add alumni (admin or alumni role)
   const canAddAlumni = hasRole("admin") || hasRole("alumni");
 
   // Fetch alumni from database (alumni table)
-  const { data: alumni = [], isLoading } = useQuery({
+  const { data: alumni = [], isLoading, error: alumniError } = useQuery({
     queryKey: ["alumni"],
     queryFn: async () => {
+      if (!user) {
+        console.warn("User not authenticated - RLS will block query");
+        return [];
+      }
+      
       const { data, error } = await supabase
         .from("alumni")
         .select("*")
         .order("graduation_year", { ascending: false });
+      
       if (error) {
         // If table doesn't exist, return empty array
         if (error.code === "42P01") {
+          console.warn("Alumni table does not exist");
           return [];
         }
+        // RLS policy violation
+        if (error.code === "42501" || error.message?.includes("permission denied")) {
+          console.error("RLS policy blocked query. User:", user.id);
+          throw new Error("Permission denied. Make sure you're logged in.");
+        }
+        console.error("Error fetching alumni:", error);
         throw error;
       }
+      
+      // Deduplicate by email or id (keep first occurrence)
+      if (data) {
+        const seen = new Set<string>();
+        const deduplicated = data.filter((alum) => {
+          const key = alum.email || alum.id;
+          if (seen.has(key)) {
+            return false;
+          }
+          seen.add(key);
+          return true;
+        });
+        return deduplicated;
+      }
+      
       return data || [];
     },
+    enabled: !!user, // Only run query if user is authenticated
   });
 
   // Fetch upcoming events
@@ -54,14 +83,19 @@ const Alumni = () => {
   });
 
   // Filter alumni by search
-  const filteredAlumni = alumni.filter((alum) =>
+  const filteredAlumni = (alumni || []).filter((alum) =>
     alum.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    alum.email?.toLowerCase().includes(search.toLowerCase())
+    alum.email?.toLowerCase().includes(search.toLowerCase()) ||
+    alum.current_company?.toLowerCase().includes(search.toLowerCase()) ||
+    alum.current_position?.toLowerCase().includes(search.toLowerCase()) ||
+    alum.industry?.toLowerCase().includes(search.toLowerCase()) ||
+    alum.location?.toLowerCase().includes(search.toLowerCase())
   );
 
   // Calculate stats
   const totalAlumni = alumni.length;
   const activeMentors = alumni.filter((a) => a.linkedin_url).length;
+  
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -91,9 +125,9 @@ const Alumni = () => {
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
             <p className="text-2xl font-display font-bold gradient-text">
-              {new Set(alumni.map((a) => a.chapter).filter(Boolean)).size}
+              {new Set(alumni.map((a) => a.industry).filter(Boolean)).size}
             </p>
-            <p className="text-sm text-muted-foreground">Chapters</p>
+            <p className="text-sm text-muted-foreground">Industries</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
             <p className="text-2xl font-display font-bold gradient-text">
@@ -102,6 +136,17 @@ const Alumni = () => {
             <p className="text-sm text-muted-foreground">Upcoming Events</p>
           </div>
         </div>
+
+        {!user && (
+          <div className="glass-card rounded-xl p-6 border-yellow-500/30 border-2 bg-yellow-500/10">
+            <p className="text-yellow-600 dark:text-yellow-400 font-semibold mb-2">
+              ⚠️ Please log in to view alumni
+            </p>
+            <p className="text-sm text-muted-foreground">
+              The alumni directory requires authentication. Please sign in to view alumni profiles.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Alumni Directory */}
@@ -128,13 +173,24 @@ const Alumni = () => {
                   <div key={i} className="glass-card rounded-xl p-6 h-32 bg-secondary/30 animate-pulse" />
                 ))}
               </div>
+            ) : alumniError ? (
+              <div className="glass-card rounded-xl p-12 text-center border-destructive border-2">
+                <p className="text-destructive font-semibold mb-2">Error loading alumni</p>
+                <p className="text-sm text-muted-foreground">{alumniError.message}</p>
+                <p className="text-xs text-muted-foreground mt-2">Check browser console for details</p>
+              </div>
             ) : filteredAlumni.length === 0 ? (
               <div className="glass-card rounded-xl p-12 text-center">
                 <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h3 className="text-xl font-display font-bold text-foreground mb-2">No Alumni Found</h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-2">
                   {search ? "Try a different search term" : "No alumni profiles yet"}
                 </p>
+                {!search && alumni.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Database shows 34 records. Check console for query details.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -196,13 +252,33 @@ const Alumni = () => {
                       <div className="mt-3 space-y-1 text-sm text-muted-foreground">
                         {alum.email && (
                           <p className="flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
                             <span className="text-foreground font-medium">{alum.email}</span>
                           </p>
                         )}
-                        {alum.committee && (
+                        {alum.current_company && alum.current_position && (
                           <p className="flex items-center gap-2">
                             <Briefcase className="w-4 h-4" />
-                            <span className="text-foreground font-medium">{alum.committee}</span>
+                            <span className="text-foreground font-medium">
+                              {alum.current_position} at {alum.current_company}
+                            </span>
+                          </p>
+                        )}
+                        {alum.location && (
+                          <p className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            <span className="text-foreground font-medium">{alum.location}</span>
+                          </p>
+                        )}
+                        {alum.industry && (
+                          <p className="flex items-center gap-2">
+                            <span className="text-foreground font-medium">{alum.industry}</span>
+                          </p>
+                        )}
+                        {alum.degree && (
+                          <p className="flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4" />
+                            <span className="text-foreground font-medium">{alum.degree}</span>
                           </p>
                         )}
                       </div>

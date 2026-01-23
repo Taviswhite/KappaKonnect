@@ -23,22 +23,38 @@ import {
   Users,
   Settings as SettingsIcon
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 
 export default function Settings() {
   const { toast } = useToast();
   const { hasRole } = useAuth();
   const navigate = useNavigate();
   const isAdmin = hasRole("admin");
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [preferences, setPreferences] = useState({
-    theme: "dark",
+    theme: theme || "dark",
     language: "en",
     timezone: "America/New_York",
   });
+
+  // Sync preferences.theme with actual theme
+  useEffect(() => {
+    if (mounted && theme) {
+      setPreferences((p) => ({ ...p, theme }));
+    }
+  }, [theme, mounted]);
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -142,10 +158,16 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="theme">Theme</Label>
                     <Select
-                      value={preferences.theme}
-                      onValueChange={(value) =>
-                        setPreferences((p) => ({ ...p, theme: value }))
-                      }
+                      value={mounted ? preferences.theme : "dark"}
+                      onValueChange={(value) => {
+                        setPreferences((p) => ({ ...p, theme: value }));
+                        setTheme(value);
+                        toast({
+                          title: "Theme Updated",
+                          description: `Theme changed to ${value}`,
+                        });
+                      }}
+                      disabled={!mounted}
                     >
                       <SelectTrigger className="bg-secondary/30">
                         <SelectValue />
@@ -467,7 +489,19 @@ export default function Settings() {
                       Permanently delete your account and all data
                     </p>
                   </div>
-                  <Button variant="destructive" size="sm">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Are you sure you want to delete your account? This action cannot be undone."
+                        )
+                      ) {
+                        sonnerToast.error("Account deletion is not yet implemented. Please contact support.");
+                      }
+                    }}
+                  >
                     Delete Account
                   </Button>
                 </div>

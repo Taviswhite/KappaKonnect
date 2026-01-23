@@ -27,7 +27,6 @@ import {
   Mail, 
   Phone, 
   CheckCircle2, 
-  XCircle,
   AlertTriangle,
   Filter,
   Download,
