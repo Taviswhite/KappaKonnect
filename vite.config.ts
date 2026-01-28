@@ -36,42 +36,26 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: undefined,
+        },
+      },
+      minify: "esbuild",
+      terserOptions: undefined,
+    },
     plugins: [
       react(),
       VitePWA({
         registerType: "prompt",
         injectRegister: "auto",
-        workbox: {
+        strategies: "injectManifest",
+        srcDir: "src",
+        filename: "sw.ts",
+        injectManifest: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,webmanifest}"],
-          navigateFallback: "/index.html",
-          navigateFallbackAllowlist: [/^(?!\/__).*/],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "supabase-cache",
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24, // 24 hours
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              urlPattern: ({ request }) => request.destination === "document",
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "pages-cache",
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60, // 1 hour
-                },
-              },
-            },
-          ],
+          maximumFileSizeToCacheInBytes: 5000000,
         },
         manifest: {
           name: "KappaKonnect",
@@ -94,7 +78,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         devOptions: {
-          enabled: true,
+          enabled: mode === "development",
           type: "module",
         },
       }),
