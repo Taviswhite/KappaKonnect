@@ -51,8 +51,7 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
   const location = useLocation();
   const { hasRole } = useAuth();
   const isAdmin = hasRole("admin");
-  const hideEventsForAlumni = hasRole("alumni") && !hasRole("admin") && !hasRole("e_board") && !hasRole("committee_chairman");
-  const navItems = menuItems.filter((item) => !(hideEventsForAlumni && item.path === "/events"));
+  const navItems = menuItems;
 
   // Close mobile menu on route change
   useEffect(() => {

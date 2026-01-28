@@ -91,9 +91,7 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
             graduation_year: data.graduation_year,
             current_company: data.company || null,
             current_position: data.position || null,
-            industry: data.industry || null,
             location: data.location || null,
-            degree: data.degree || null,
             linkedin_url: data.linkedin_url || null,
           });
 
@@ -243,3 +241,4 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
     </Dialog>
   );
 }
+

@@ -13,48 +13,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Shield, 
-  Bell, 
-  Palette, 
+import {
+  Shield,
+  Bell,
+  Palette,
   Lock,
   Save,
   AlertTriangle,
+  LayoutDashboard,
   Users,
-  Settings as SettingsIcon
+  Calendar,
+  CheckSquare,
+  GraduationCap,
+  Activity,
+  ListTodo,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DashboardPreferences,
+  DashboardSectionKey,
+  getDashboardOrder,
+  getDashboardPreferences,
+  resetDashboardPreferences,
+  updateDashboardOrder,
+  updateDashboardPreferences,
+} from "@/lib/dashboard-preferences";
 
 export default function Settings() {
   const { toast } = useToast();
-  const { hasRole } = useAuth();
-  const navigate = useNavigate();
-  const isAdmin = hasRole("admin");
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch
+  // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const [preferences, setPreferences] = useState({
-    theme: theme || "dark",
+    theme: theme || "system",
     language: "en",
     timezone: "America/New_York",
   });
 
-  // Sync preferences.theme with actual theme
+  // Sync preferences with theme
   useEffect(() => {
     if (mounted && theme) {
-      setPreferences((p) => ({ ...p, theme }));
+      setPreferences((p) => ({ ...p, theme: theme }));
     }
   }, [theme, mounted]);
 
@@ -62,6 +70,7 @@ export default function Settings() {
     email: true,
     push: true,
     events: true,
+    payments: true,
     tasks: true,
   });
 
@@ -74,20 +83,24 @@ export default function Settings() {
   const [security, setSecurity] = useState({
     twoFactor: false,
     sessionAlerts: true,
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
   });
 
-  const [systemSettings, setSystemSettings] = useState({
-    allowPublicRegistration: true,
-    requireEmailVerification: true,
-    maxFileUploadSize: 10,
-    sessionTimeout: 30,
-    maintenanceMode: false,
-  });
+  const [dashboardPreferences, setDashboardPreferences] =
+    useState<DashboardPreferences>(() => getDashboardPreferences(user?.id));
+  const [dashboardOrder, setDashboardOrder] = useState<DashboardSectionKey[]>(
+    () => getDashboardOrder(user?.id),
+  );
+
+  useEffect(() => {
+    setDashboardPreferences(getDashboardPreferences(user?.id));
+    setDashboardOrder(getDashboardOrder(user?.id));
+  }, [user?.id]);
 
   const handleSavePreferences = () => {
+    // Update theme immediately when changed
+    if (preferences.theme && setTheme) {
+      setTheme(preferences.theme);
+    }
     toast({
       title: "Preferences Updated",
       description: "Your preferences have been saved.",
@@ -108,12 +121,61 @@ export default function Settings() {
     });
   };
 
-  const handleSaveSystemSettings = () => {
-    // In a real app, you'd save these to a system_settings table in Supabase
-    sonnerToast.success("System settings saved", {
-      description: "System configuration has been updated successfully.",
+  const handleSaveSecurity = () => {
+    toast({
+      title: "Security Settings Updated",
+      description: "Your security settings have been saved.",
     });
-    console.log("System settings:", systemSettings);
+  };
+
+  const handleDashboardToggle = (key: keyof DashboardPreferences, value: boolean) => {
+    if (!user?.id) {
+      setDashboardPreferences((prev) => ({ ...prev, [key]: value }));
+      return;
+    }
+    const next = updateDashboardPreferences(user.id, (prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setDashboardPreferences(next);
+  };
+
+  const handleResetDashboard = () => {
+    if (!user?.id) return;
+    resetDashboardPreferences(user.id);
+    setDashboardPreferences(getDashboardPreferences(user.id));
+    toast({
+      title: "Dashboard reset",
+      description: "Your dashboard layout has been reset to the default view.",
+    });
+  };
+
+  const moveDashboardSection = (key: DashboardSectionKey, direction: "up" | "down") => {
+    if (!user?.id) {
+      setDashboardOrder((prev) => {
+        const index = prev.indexOf(key);
+        if (index === -1) return prev;
+        const next = [...prev];
+        const newIndex = direction === "up" ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= next.length) return prev;
+        const [item] = next.splice(index, 1);
+        next.splice(newIndex, 0, item);
+        return next;
+      });
+      return;
+    }
+
+    const next = updateDashboardOrder(user.id, (prev) => {
+      const index = prev.indexOf(key);
+      if (index === -1) return prev;
+      const arr = [...prev];
+      const newIndex = direction === "up" ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= arr.length) return prev;
+      const [item] = arr.splice(index, 1);
+      arr.splice(newIndex, 0, item);
+      return arr;
+    });
+    setDashboardOrder(next);
   };
 
   return (
@@ -147,12 +209,6 @@ export default function Settings() {
               <Lock className="w-4 h-4" />
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </TabsTrigger>
-            )}
           </TabsList>
 
           {/* Preferences Tab */}
@@ -172,16 +228,13 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="theme">Theme</Label>
                     <Select
-                      value={mounted ? preferences.theme : "dark"}
+                      value={mounted ? (preferences.theme || "system") : "system"}
                       onValueChange={(value) => {
                         setPreferences((p) => ({ ...p, theme: value }));
-                        setTheme(value);
-                        toast({
-                          title: "Theme Updated",
-                          description: `Theme changed to ${value}`,
-                        });
+                        if (setTheme) {
+                          setTheme(value);
+                        }
                       }}
-                      disabled={!mounted}
                     >
                       <SelectTrigger className="bg-secondary/30">
                         <SelectValue />
@@ -229,6 +282,445 @@ export default function Settings() {
                         <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Dashboard Layout
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which sections appear on your home dashboard.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {dashboardOrder.map((key) => {
+                      const isFirst = dashboardOrder[0] === key;
+                      const isLast = dashboardOrder[dashboardOrder.length - 1] === key;
+
+                      const commonProps = {
+                        className:
+                          "flex items-center justify-between p-3 rounded-xl bg-secondary/20",
+                      };
+
+                      const contentForKey = () => {
+                        switch (key) {
+                          case "stats":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Stats</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Member, event, and task counts
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() => moveDashboardSection("stats", "up")}
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() => moveDashboardSection("stats", "down")}
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.stats}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("stats", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "quickActions":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <CheckSquare className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Quick Actions</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Shortcuts to common tasks
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      moveDashboardSection("quickActions", "up")
+                                    }
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("quickActions", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.quickActions}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("quickActions", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "advisors":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Shield className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Chapter Advisors</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Your advisory team at a glance
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() => moveDashboardSection("advisors", "up")}
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("advisors", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.advisors}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("advisors", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "upcomingEvents":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Upcoming Events</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      List of upcoming events
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      moveDashboardSection("upcomingEvents", "up")
+                                    }
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("upcomingEvents", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.upcomingEvents}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("upcomingEvents", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "attendanceCheckIn":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <CheckSquare className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Attendance Check-In</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Card to open attendance check-in for the next event
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      moveDashboardSection("attendanceCheckIn", "up")
+                                    }
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("attendanceCheckIn", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.attendanceCheckIn}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle(
+                                        "attendanceCheckIn",
+                                        checked,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "featuredAlumni":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <GraduationCap className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Featured Alumni</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Highlighted alumni from your chapter
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      moveDashboardSection("featuredAlumni", "up")
+                                    }
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("featuredAlumni", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.featuredAlumni}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("featuredAlumni", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "eBoard":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Executive Board</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Highlight chapter E-board members
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() => moveDashboardSection("eBoard", "up")}
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("eBoard", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.eBoard}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("eBoard", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "taskList":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <ListTodo className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">My Tasks</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Your personal task list
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() => moveDashboardSection("taskList", "up")}
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("taskList", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.taskList}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("taskList", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          case "recentActivity":
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Activity className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <Label className="text-sm">Recent Activity</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      Latest updates from your chapter
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isFirst}
+                                    onClick={() =>
+                                      moveDashboardSection("recentActivity", "up")
+                                    }
+                                  >
+                                    ↑
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={isLast}
+                                    onClick={() =>
+                                      moveDashboardSection("recentActivity", "down")
+                                    }
+                                  >
+                                    ↓
+                                  </Button>
+                                  <Switch
+                                    checked={dashboardPreferences.recentActivity}
+                                    onCheckedChange={(checked) =>
+                                      handleDashboardToggle("recentActivity", checked)
+                                    }
+                                  />
+                                </div>
+                              </>
+                            );
+                          default:
+                            return null;
+                        }
+                      };
+
+                      return (
+                        <div key={key} {...commonProps}>
+                          {contentForKey()}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResetDashboard}
+                      disabled={!user}
+                    >
+                      Reset dashboard to default
+                    </Button>
                   </div>
                 </div>
 
@@ -296,6 +788,20 @@ export default function Settings() {
                       checked={notifications.events}
                       onCheckedChange={(checked) =>
                         setNotifications((p) => ({ ...p, events: checked }))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/20">
+                    <div className="space-y-0.5">
+                      <Label>Payment Reminders</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified about payment due dates
+                      </p>
+                    </div>
+                    <Switch
+                      checked={notifications.payments}
+                      onCheckedChange={(checked) =>
+                        setNotifications((p) => ({ ...p, payments: checked }))
                       }
                     />
                   </div>
@@ -503,171 +1009,13 @@ export default function Settings() {
                       Permanently delete your account and all data
                     </p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to delete your account? This action cannot be undone."
-                        )
-                      ) {
-                        sonnerToast.error("Account deletion is not yet implemented. Please contact support.");
-                      }
-                    }}
-                  >
+                  <Button variant="destructive" size="sm">
                     Delete Account
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Admin Tab */}
-          {isAdmin && (
-            <TabsContent value="admin" className="space-y-6">
-              <Card className="glass-card border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-primary" />
-                    Admin Controls
-                  </CardTitle>
-                  <CardDescription>
-                    Administrative functions and user management
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-secondary/20 border border-primary/20">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-primary" />
-                        User Management
-                      </h4>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Manage user roles, permissions, and access controls.
-                      </p>
-                      <Button 
-                        variant="hero" 
-                        onClick={() => navigate("/admin")}
-                        className="w-full sm:w-auto"
-                      >
-                        <Shield className="w-4 h-4 mr-2" />
-                        Open Admin Panel
-                      </Button>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-secondary/20">
-                            <h4 className="font-semibold mb-2 flex items-center gap-2">
-                              <SettingsIcon className="w-4 h-4 text-primary" />
-                              System Settings
-                            </h4>
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Configure application-wide settings and preferences.
-                            </p>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Public Registration</Label>
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
-                                  <div>
-                                    <p className="text-sm font-medium">Allow Public Registration</p>
-                                    <p className="text-xs text-muted-foreground">Allow anyone to create an account</p>
-                                  </div>
-                                  <Switch
-                                    checked={systemSettings.allowPublicRegistration}
-                                    onCheckedChange={(checked) =>
-                                      setSystemSettings({ ...systemSettings, allowPublicRegistration: checked })
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Email Verification</Label>
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
-                                  <div>
-                                    <p className="text-sm font-medium">Require Email Verification</p>
-                                    <p className="text-xs text-muted-foreground">Users must verify email before access</p>
-                                  </div>
-                                  <Switch
-                                    checked={systemSettings.requireEmailVerification}
-                                    onCheckedChange={(checked) =>
-                                      setSystemSettings({ ...systemSettings, requireEmailVerification: checked })
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>File Upload Size Limit (MB)</Label>
-                                <Input
-                                  type="number"
-                                  value={systemSettings.maxFileUploadSize}
-                                  onChange={(e) =>
-                                    setSystemSettings({ ...systemSettings, maxFileUploadSize: parseInt(e.target.value) || 10 })
-                                  }
-                                  min={1}
-                                  max={100}
-                                  className="bg-secondary/30"
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Session Timeout (minutes)</Label>
-                                <Input
-                                  type="number"
-                                  value={systemSettings.sessionTimeout}
-                                  onChange={(e) =>
-                                    setSystemSettings({ ...systemSettings, sessionTimeout: parseInt(e.target.value) || 30 })
-                                  }
-                                  min={5}
-                                  max={1440}
-                                  className="bg-secondary/30"
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Maintenance Mode</Label>
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/20">
-                                  <div>
-                                    <p className="text-sm font-medium">Enable Maintenance Mode</p>
-                                    <p className="text-xs text-muted-foreground">Temporarily disable app access</p>
-                                  </div>
-                                  <Switch
-                                    checked={systemSettings.maintenanceMode}
-                                    onCheckedChange={(checked) =>
-                                      setSystemSettings({ ...systemSettings, maintenanceMode: checked })
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              <Button onClick={handleSaveSystemSettings} className="w-full">
-                                <Save className="w-4 h-4 mr-2" />
-                                Save System Settings
-                              </Button>
-                            </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      Admin Responsibilities
-                    </h4>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p>• Manage user roles and permissions</p>
-                      <p>• Assign admin privileges to trusted members</p>
-                      <p>• Monitor system activity and user access</p>
-                      <p>• Configure application settings</p>
-                      <p>• Ensure data security and privacy</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
         </Tabs>
       </div>
     </AppLayout>

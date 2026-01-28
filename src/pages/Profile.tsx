@@ -26,22 +26,16 @@ import {
   Phone,
   BookOpen
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 export default function Profile() {
   const { profile, roles, user } = useAuth();
-  const { toast: toastHook } = useToast();
-  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const primaryRole = roles[0]?.role || "member";
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [profileData, setProfileData] = useState({
     full_name: "",
@@ -64,11 +58,11 @@ export default function Profile() {
         phone: profile.phone || "",
         committee: profile.committee || "",
         graduation_year: profile.graduation_year?.toString() || "",
-        linkedin_url: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.linkedin_url || "",
-        bio: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.bio || "",
-        crossing_year: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.crossing_year?.toString() || "",
-        line_name: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.line_name || "",
-        chapter: (profile as Database["public"]["Tables"]["profiles"]["Row"])?.chapter || "",
+        linkedin_url: (profile as any).linkedin_url || "",
+        bio: (profile as any).bio || "",
+        crossing_year: (profile as any).crossing_year?.toString() || "",
+        line_name: (profile as any).line_name || "",
+        chapter: (profile as any).chapter || "",
       });
     }
   }, [profile]);
@@ -80,81 +74,6 @@ export default function Profile() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB");
-      return;
-    }
-
-    setIsUploadingAvatar(true);
-
-    try {
-      // Create a unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) {
-        // Try creating the bucket if it doesn't exist
-        if (uploadError.message.includes('Bucket not found')) {
-          toast.error("Avatar storage not configured. Please set up the 'avatars' bucket in Supabase Storage.");
-        } else {
-          toast.error(`Upload failed: ${uploadError.message}`);
-        }
-        return;
-      }
-
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(uploadData.path);
-      
-      const avatarUrl = publicUrlData.publicUrl;
-
-      // Update profile with new avatar URL
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: avatarUrl })
-        .eq("user_id", user.id);
-
-      if (updateError) {
-        toast.error(`Failed to update profile: ${updateError.message}`);
-        return;
-      }
-
-      toast.success("Avatar updated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
-      
-      // Reset input
-      if (avatarInputRef.current) {
-        avatarInputRef.current.value = "";
-      }
-    } catch (error) {
-      toast.error("An error occurred while uploading avatar");
-      console.error("Avatar upload error:", error);
-    } finally {
-      setIsUploadingAvatar(false);
-    }
   };
 
   const handleSaveProfile = async () => {
@@ -179,14 +98,14 @@ export default function Profile() {
 
       if (error) throw error;
 
-      toastHook({
+      toast({
         title: "Profile Updated",
         description: "Your profile has been saved successfully.",
       });
-    } catch (error: unknown) {
-      toastHook({
+    } catch (error: any) {
+      toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile",
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       });
     } finally {
@@ -225,18 +144,9 @@ export default function Profile() {
                 <Button
                   size="icon"
                   className="absolute -bottom-1 -right-1 rounded-full w-8 h-8 shadow-lg"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={isUploadingAvatar}
                 >
                   <Camera className="w-4 h-4" />
                 </Button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
               </div>
               <div className="text-center sm:text-left pb-2">
                 <h2 className="text-xl sm:text-2xl font-display font-bold">

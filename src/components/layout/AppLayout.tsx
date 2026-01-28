@@ -1,36 +1,22 @@
-import { ReactNode, useState } from "react";
-import { Sidebar } from "./Sidebar";
+import { ReactNode } from "react";
 import { Header } from "./Header";
-import { cn } from "@/lib/utils";
+import { AppNavBar } from "./AppNavBar";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface AppLayoutProps {
   children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar 
-        mobileOpen={mobileOpen} 
-        setMobileOpen={setMobileOpen} 
-        collapsed={sidebarCollapsed}
-        setCollapsed={setSidebarCollapsed}
-      />
-      {/* Main content area - responsive padding for sidebar with smooth transition */}
-      <div 
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          sidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
-        )}
-      >
-        <Header onMobileMenuToggle={() => setMobileOpen(true)} />
-        <main className="p-3 sm:p-4 md:p-6 animate-fade-in">
-          {children}
-        </main>
-      </div>
+      <Header />
+      <main className="p-3 sm:p-4 md:p-6 pb-20 sm:pb-20 animate-fade-in min-h-screen">
+        {children}
+      </main>
+      <ErrorBoundary>
+        <AppNavBar />
+      </ErrorBoundary>
     </div>
   );
 }

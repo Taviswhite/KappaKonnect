@@ -1,37 +1,42 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Search, 
-  Shield, 
-  Users, 
-  Mail, 
-  Phone, 
-  CheckCircle2, 
+import {
+  Search,
+  Shield,
+  Users,
+  Mail,
+  Phone,
   AlertTriangle,
   Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  Megaphone,
 } from "lucide-react";
+import { SendAnnouncementDialog } from "@/components/dialogs/SendAnnouncementDialog";
+import { NextEventCard } from "@/components/dashboard/NextEventCard";
+import { TaskList } from "@/components/dashboard/TaskList";
 import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,8 +59,9 @@ type AppRole = "admin" | "e_board" | "committee_chairman" | "member" | "alumni";
 const AdminPanel = () => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Only admins can access this page
   const isAdmin = hasRole("admin");
@@ -255,7 +261,7 @@ const AdminPanel = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-8 sm:space-y-10">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -292,43 +298,94 @@ const AdminPanel = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-foreground">{stats.total}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-foreground">{stats.total}</p>
               <p className="text-xs text-muted-foreground mt-1">Total Users</p>
             </CardContent>
           </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-primary">{stats.admins}</p>
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-primary">{stats.admins}</p>
               <p className="text-xs text-muted-foreground mt-1">Admins</p>
             </CardContent>
           </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-primary">{stats.e_board}</p>
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-primary">{stats.e_board}</p>
               <p className="text-xs text-muted-foreground mt-1">E-Board</p>
             </CardContent>
           </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-accent">{stats.committee_chairmen}</p>
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-accent">{stats.committee_chairmen}</p>
               <p className="text-xs text-muted-foreground mt-1">Chairs</p>
             </CardContent>
           </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-foreground">{stats.members}</p>
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-foreground">{stats.members}</p>
               <p className="text-xs text-muted-foreground mt-1">Members</p>
             </CardContent>
           </Card>
-          <Card className="glass-card border-0">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-display font-bold text-purple-400">{stats.alumni}</p>
+          <Card className="glass-card rounded-xl border-0 card-hover">
+            <CardContent className="p-4 sm:p-6 text-center">
+              <p className="text-3xl sm:text-4xl font-display font-bold text-purple-400">{stats.alumni}</p>
               <p className="text-xs text-muted-foreground mt-1">Alumni</p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
+            Quick Actions
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            <button
+              onClick={() => navigate("/events")}
+              className="group glass-card rounded-xl p-4 sm:p-5 flex items-center gap-4 card-hover card-press text-left"
+              aria-label="Add event"
+            >
+              <div className="icon-container icon-container-primary group-hover:scale-105 transition-transform duration-150">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">Add Event</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Schedule a new chapter event
+                </p>
+              </div>
+            </button>
+            <SendAnnouncementDialog>
+              <Button
+                variant="ghost"
+                className="group h-auto w-full justify-start glass-card rounded-xl p-4 sm:p-5 flex items-center gap-4 card-hover card-press border border-border hover:border-primary/20 transition-colors duration-150"
+              >
+                <div className="icon-container icon-container-accent group-hover:scale-105 transition-transform duration-150">
+                  <Megaphone className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Send Announcement</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Notify all members
+                  </p>
+                </div>
+              </Button>
+            </SendAnnouncementDialog>
+          </div>
+        </div>
+
+        {/* Today's Focus */}
+        <div>
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
+            Today&apos;s Focus
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <NextEventCard />
+            <TaskList />
+          </div>
         </div>
 
         {/* Search and Filters */}

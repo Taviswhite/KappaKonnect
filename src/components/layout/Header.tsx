@@ -1,4 +1,4 @@
-import { Bell, Search, User, LogOut } from "lucide-react";
+import { Bell, Search, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { MobileMenuTrigger } from "./Sidebar";
+import { formatCrossingDisplay } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -22,11 +22,7 @@ import { Check, Trash2, Calendar, MessageSquare, CheckSquare, Users, Megaphone, 
 import { toast } from "sonner";
 import { useState } from "react";
 
-interface HeaderProps {
-  onMobileMenuToggle: () => void;
-}
-
-export function Header({ onMobileMenuToggle }: HeaderProps) {
+export function Header() {
   const { profile, roles, signOut, user } = useAuth();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -163,8 +159,10 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 h-14 sm:h-16 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="flex items-center justify-between h-full px-3 sm:px-6">
-        {/* Mobile Menu Trigger */}
-        <MobileMenuTrigger onClick={onMobileMenuToggle} />
+        {/* Logo / app name - left */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-display font-bold text-lg text-foreground truncate">KappaKonnect</span>
+        </div>
 
         {/* Search - Hidden on mobile, visible on tablet+ */}
         <div className="relative w-48 sm:w-64 md:w-96 hidden sm:block">
@@ -304,72 +302,6 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
             </DialogContent>
           </Dialog>
 
-          {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-primary text-primary-foreground text-xs">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 sm:w-80 glass-card max-h-[400px] overflow-y-auto">
-              <DropdownMenuLabel className="font-display flex items-center justify-between">
-                <span>Notifications</span>
-                {unreadCount > 0 && (
-                  <Badge className="bg-primary">{unreadCount} new</Badge>
-                )}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {recentNotifications.length === 0 ? (
-                <div className="py-6 text-center">
-                  <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No new notifications</p>
-                </div>
-              ) : (
-                <div className="py-2">
-                  {recentNotifications.map((notification: any) => (
-                    <DropdownMenuItem
-                      key={notification.id}
-                      className="flex items-start gap-3 p-3 cursor-pointer"
-                      onClick={() => {
-                        navigate("/notifications");
-                        if (notification.link) {
-                          window.open(notification.link, "_blank");
-                        }
-                      }}
-                    >
-                      <div className="mt-0.5">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${!notification.read ? "text-foreground" : "text-muted-foreground"}`}>
-                          {notification.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/notifications")} className="cursor-pointer justify-center">
-                    View all notifications
-                  </DropdownMenuItem>
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -395,7 +327,17 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/notifications")} className="cursor-pointer">
+                <Bell className="w-4 h-4 mr-2" />
+                Notifications
+                {unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-xs">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Badge>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
+                <Settings className="w-4 h-4 mr-2" />
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />

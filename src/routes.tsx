@@ -14,6 +14,7 @@ import Meetings from "./pages/Meetings";
 import Chat from "./pages/Chat";
 import Attendance from "./pages/Attendance";
 import Alumni from "./pages/Alumni";
+import AlumniProfile from "./pages/AlumniProfile";
 import Documents from "./pages/Documents";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
@@ -38,6 +39,7 @@ export const appRoutes = (
     <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
     <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
     <Route path="/alumni" element={<ProtectedRoute><Alumni /></ProtectedRoute>} />
+    <Route path="/alumni/:id" element={<ProtectedRoute><AlumniProfile /></ProtectedRoute>} />
     <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
     <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

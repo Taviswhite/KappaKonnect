@@ -23,7 +23,7 @@ FROM (
   VALUES 
     ('Bryce Perkins', 'bryce@example.com'),
     ('Ahmod Newton', 'ahmod@example.com'),
-    ('Bryan Singleton II', 'brian@example.com'),
+    ('Brian Singleton II', 'brian@example.com'),
     ('Kobe Denmark-Garnett', 'kobe@example.com'),
     ('Skylar Peterkin', 'skylar@example.com'),
     ('Ahmad Edwards', 'ahmad@example.com'),
