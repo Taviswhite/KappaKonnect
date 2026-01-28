@@ -10,15 +10,20 @@
 -- Go to Supabase Dashboard → Authentication → Add User
 -- Create these 6 CORE users with these emails and passwords:
 --
---   1. admin@example.com / DemoAdmin123!
---   2. eboard@example.com / DemoEBoard123!
---   3. chair@example.com / DemoChair123!
---   4. member1@example.com / DemoMember123!
---   5. member2@example.com / DemoMember123!
---   6. alumni@example.com / DemoAlumni123!
+--   1. jeremiah@example.com / DemoEBoard123! (Strategist - E-Board)
+--   2. doole@example.com / DemoEBoard123! (Keeper of exchequer - E-Board)
+--   3. grant@example.com / DemoEBoard123! (Lt. Strategist - E-Board)
+--   4. bryce@example.com / DemoEBoard123! (Polemarch - E-Board)
+--   5. mael@example.com / DemoEBoard123! (Vice Polemarch - E-Board)
+--   6. don@example.com / DemoEBoard123! (Keeper of Records - E-Board)
+--   7. carsen@example.com / DemoEBoard123! (Historian - E-Board)
+--   8. jordan@example.com / DemoChair123! (Community Service Chairman)
+--   9. malachi@example.com / DemoChair123! (Guide Right Chairman)
+--   10. jared@example.com / DemoChair123! (Public Relations Chairman)
+--   11. skylar@example.com / DemoChair123! (Programming Chairman)
+--   12. kaden@example.com / DemoChair123! (Health & Wellness Chairman)
 --
--- OPTIONAL: For more members (18 total), also create these auth users:
---   member3@example.com through member18@example.com (all with password DemoMember123!)
+-- OPTIONAL: For all 32 members, create auth users for all emails listed below
 --
 -- After creating the users, run this script to populate profiles and demo data.
 --
@@ -35,7 +40,8 @@ CREATE OR REPLACE FUNCTION create_demo_profile(
   p_phone TEXT,
   p_graduation_year INTEGER,
   p_committee TEXT,
-  p_role public.app_role
+  p_role public.app_role,
+  p_crossing_year INTEGER DEFAULT NULL
 ) RETURNS UUID AS $$
 DECLARE
   v_user_id UUID;
@@ -49,19 +55,37 @@ BEGIN
   END IF;
 
   -- Insert profile (handle conflicts on both id and user_id)
-  INSERT INTO public.profiles (id, user_id, full_name, email, phone, graduation_year, committee, avatar_url)
-  VALUES (v_user_id, v_user_id, p_full_name, p_email, p_phone, p_graduation_year, p_committee, NULL)
+  -- Remove committee for alumni and regular members (keep for E-Board and Committee Chairs)
+  -- Avatar URLs will be set separately after uploading photos (see BULK_UPLOAD_AVATARS.md)
+  INSERT INTO public.profiles (id, user_id, full_name, email, phone, graduation_year, committee, avatar_url, crossing_year)
+  VALUES (
+    v_user_id, 
+    v_user_id, 
+    p_full_name, 
+    p_email, 
+    p_phone, 
+    p_graduation_year, 
+    CASE 
+      WHEN p_role IN ('e_board', 'committee_chairman') THEN p_committee
+      ELSE NULL
+    END,
+    NULL, -- Avatar will be set after uploading photos
+    p_crossing_year
+  )
   ON CONFLICT (user_id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
     email = EXCLUDED.email,
     phone = EXCLUDED.phone,
     graduation_year = EXCLUDED.graduation_year,
-    committee = EXCLUDED.committee;
+    committee = EXCLUDED.committee,
+    crossing_year = EXCLUDED.crossing_year;
 
-  -- Insert role
+  -- Insert/update role - replace existing roles for this user
+  -- First delete existing roles for this user
+  DELETE FROM public.user_roles WHERE user_id = v_user_id;
+  -- Then insert the new role
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (v_user_id, p_role)
-  ON CONFLICT (user_id, role) DO NOTHING;
+  VALUES (v_user_id, p_role);
 
   RETURN v_user_id;
 END;
@@ -82,58 +106,76 @@ DECLARE
   alumni_id UUID;
 BEGIN
   -- Create profiles (returns user IDs)
+  -- Admin Account
   admin_id := create_demo_profile(
     'admin@example.com',
-    'Demo Admin',
+    'Admin User',
+    '+15555550000',
+    2027,
+    NULL, -- No committee for admin
+    'admin'::public.app_role,
+    NULL -- No crossing year for admin
+  );
+  
+  -- E-Board Positions (Spring 2025 line)
+  PERFORM create_demo_profile(
+    'jeremiah@example.com',
+    'Jeremiah Ramirez',
     '+15555550001',
-    2015,
-    'Executive Board',
-    'admin'::public.app_role
+    2027,
+    'Strategist',
+    'e_board'::public.app_role,
+    2025
   );
 
   eboard_id := create_demo_profile(
-    'eboard@example.com',
-    'Demo E-Board',
+    'doole@example.com',
+    'Doole Gaiende Edwards',
     '+15555550002',
-    2016,
-    'Programming',
-    'e_board'::public.app_role
-  );
-
-  chair_id := create_demo_profile(
-    'chair@example.com',
-    'Demo Committee Chair',
-    '+15555550003',
-    2018,
-    'Community Service',
-    'committee_chairman'::public.app_role
+    2026,
+    'Keeper of exchequer',
+    'e_board'::public.app_role,
+    2025
   );
 
   member1_id := create_demo_profile(
-    'member1@example.com',
-    'Demo Member One',
-    '+15555550004',
-    2022,
-    'Fundraising',
-    'member'::public.app_role
+    'grant@example.com',
+    'Grant Hill',
+    '+15555550003',
+    2026,
+    'Lt. Strategist',
+    'e_board'::public.app_role,
+    2025
   );
 
   member2_id := create_demo_profile(
-    'member2@example.com',
-    'Demo Member Two',
+    'bryce@example.com',
+    'Bryce Perkins',
+    '+15555550004',
+    2026,
+    'Polemarch',
+    'e_board'::public.app_role,
+    2024
+  );
+
+  chair_id := create_demo_profile(
+    'mael@example.com',
+    'Mael Blunt',
     '+15555550005',
-    2023,
-    'Community Service',
-    'member'::public.app_role
+    2026,
+    'Vice Polemarch',
+    'e_board'::public.app_role,
+    2025
   );
 
   alumni_id := create_demo_profile(
-    'alumni@example.com',
-    'Demo Alumni',
+    'don@example.com',
+    'Don Jordan Duplan',
     '+15555550006',
-    2010,
-    NULL,
-    'alumni'::public.app_role
+    2026,
+    'Keeper of Records',
+    'e_board'::public.app_role,
+    2025
   );
 
   -- Note: IDs are stored in variables but we'll query auth.users directly in subsequent inserts
@@ -145,278 +187,481 @@ END $$;
 -- To add more members, create auth users with these emails in Supabase Dashboard → Authentication:
 -- Then run this section to create their profiles
 -- 
--- Additional member emails (create these auth users if you want more members):
---   member3@example.com, member4@example.com, member5@example.com, member6@example.com,
---   member7@example.com, member8@example.com, member9@example.com, member10@example.com,
---   member11@example.com, member12@example.com, member13@example.com, member14@example.com,
---   member15@example.com, member16@example.com, member17@example.com, member18@example.com
+-- Additional member emails (create these auth users if you want all 32 members):
+--   2025 Line: mael.blunt, malachi.macmillan, amir.stevenson, don.jordan, dylan.darling,
+--              jared.baker, carsen.manuel, kaden.cobb
+--   2024 Line: bryce.perkins, ahmod.newton, brian.singleton, kobe.denmarkgarnett, skylar.peterkin,
+--              ahmad.edwards, gregory.allen, joseph.serra, khimarhi.testamark, keith.henderson,
+--              joshua.carter, chase.knox, daniel.miller, brice.facey, marshall.williams,
+--              brandon.mccaskill, mory.diakite, jordan.newsome
 
 -- Create additional member profiles (will skip if auth users don't exist)
 DO $$
 BEGIN
-  -- Member 3 - E-Board
+  -- E-Board - Historian (Spring 2025 line)
   PERFORM create_demo_profile(
-    'member3@example.com',
-    'James Wilson',
+    'carsen@example.com',
+    'Carsen Manuel',
     '+15555550007',
-    2017,
-    'Programming',
-    'e_board'::public.app_role
+    2026,
+    'Historian',
+    'e_board'::public.app_role,
+    2025
   );
 
-  -- Member 4 - Committee Chair
+  -- Committee Chairs (Spring 2025 line)
   PERFORM create_demo_profile(
-    'member4@example.com',
-    'Michael Anderson',
+    'jordan@example.com',
+    'Jordan Atkins',
     '+15555550008',
-    2019,
+    2027,
     'Community Service',
-    'committee_chairman'::public.app_role
+    'committee_chairman'::public.app_role,
+    2025
   );
 
-  -- Member 5 - Member
   PERFORM create_demo_profile(
-    'member5@example.com',
-    'David Thompson',
+    'malachi@example.com',
+    'Malachi MacMillan',
     '+15555550009',
-    2021,
-    'Fundraising',
-    'member'::public.app_role
+    2027,
+    'Guide Right',
+    'committee_chairman'::public.app_role,
+    2025
   );
 
-  -- Member 6 - Member
   PERFORM create_demo_profile(
-    'member6@example.com',
-    'Christopher Martinez',
+    'jared@example.com',
+    'Jared Baker',
     '+15555550010',
-    2022,
-    'Programming',
-    'member'::public.app_role
+    2026,
+    'Public Relations',
+    'committee_chairman'::public.app_role,
+    2025
   );
 
-  -- Member 7 - Member
   PERFORM create_demo_profile(
-    'member7@example.com',
-    'Daniel Garcia',
+    'skylar@example.com',
+    'Skylar Peterkin',
     '+15555550011',
-    2023,
-    'Community Service',
-    'member'::public.app_role
+    2026,
+    'Programming',
+    'committee_chairman'::public.app_role,
+    2024
   );
 
-  -- Member 8 - Member
   PERFORM create_demo_profile(
-    'member8@example.com',
-    'Matthew Rodriguez',
+    'kaden@example.com',
+    'Kaden Cobb',
     '+15555550012',
-    2021,
-    'Fundraising',
-    'member'::public.app_role
+    2026,
+    'Health & Wellness',
+    'committee_chairman'::public.app_role,
+    2025
   );
 
-  -- Member 9 - Member
+  -- Additional Members (2025 Line - Spring 2025 crossing year)
   PERFORM create_demo_profile(
-    'member9@example.com',
-    'Andrew Lee',
+    'amir@example.com',
+    'Amir Stevenson',
     '+15555550013',
-    2022,
-    'Programming',
-    'member'::public.app_role
+    2027,
+    NULL,
+    'member'::public.app_role,
+    2025
   );
 
-  -- Member 10 - Member
   PERFORM create_demo_profile(
-    'member10@example.com',
-    'Joseph Walker',
+    'dylan@example.com',
+    'Dylan Darling',
     '+15555550014',
-    2023,
-    'Community Service',
-    'member'::public.app_role
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2025
   );
 
-  -- Member 11 - Member
+  -- Additional Members (2024 Line - Spring 2024 crossing year)
   PERFORM create_demo_profile(
-    'member11@example.com',
-    'Joshua Hall',
+    'ahmod@example.com',
+    'Ahmod Newton',
     '+15555550015',
-    2020,
-    'Fundraising',
-    'member'::public.app_role
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
   );
 
-  -- Member 12 - Member
   PERFORM create_demo_profile(
-    'member12@example.com',
-    'Ryan Young',
+    'brian@example.com',
+    'Brian Singleton II',
     '+15555550016',
-    2021,
-    'Programming',
-    'member'::public.app_role
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
   );
 
-  -- Member 13 - Member
   PERFORM create_demo_profile(
-    'member13@example.com',
-    'Nicholas King',
+    'kobe@example.com',
+    'Kobe Denmark-Garnett',
     '+15555550017',
-    2022,
-    'Community Service',
-    'member'::public.app_role
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
   );
 
-  -- Member 14 - Member
   PERFORM create_demo_profile(
-    'member14@example.com',
-    'Tyler Wright',
+    'ahmad@example.com',
+    'Ahmad Edwards',
     '+15555550018',
-    2023,
-    'Fundraising',
-    'member'::public.app_role
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
   );
 
-  -- Member 15 - Member
   PERFORM create_demo_profile(
-    'member15@example.com',
-    'Brandon Lopez',
+    'gregory@example.com',
+    'Gregory Allen Jr.',
     '+15555550019',
-    2021,
-    'Programming',
-    'member'::public.app_role
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
   );
 
-  -- Member 16 - Member
   PERFORM create_demo_profile(
-    'member16@example.com',
-    'Justin Hill',
+    'joseph@example.com',
+    'Joseph Serra',
     '+15555550020',
-    2022,
-    'Community Service',
-    'member'::public.app_role
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
   );
 
-  -- Member 17 - Member
   PERFORM create_demo_profile(
-    'member17@example.com',
-    'Jonathan Scott',
+    'khimarhi@example.com',
+    'Khimarhi Testamark',
     '+15555550021',
-    2023,
-    'Fundraising',
-    'member'::public.app_role
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
   );
 
-  -- Member 18 - Member
   PERFORM create_demo_profile(
-    'member18@example.com',
-    'Nathan Green',
+    'keith@example.com',
+    'Keith Henderson Jr.',
     '+15555550022',
-    2020,
-    'Programming',
-    'member'::public.app_role
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'joshua@example.com',
+    'Joshua Carter',
+    '+15555550023',
+    2024,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'chase@example.com',
+    'Chase Knox',
+    '+15555550024',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'daniel@example.com',
+    'Daniel Miller',
+    '+15555550025',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'brice@example.com',
+    'Brice Facey',
+    '+15555550026',
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'marshall@example.com',
+    'Marshall Williams',
+    '+15555550027',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'brandon@example.com',
+    'Brandon McCaskill',
+    '+15555550028',
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'mory@example.com',
+    'Mory Diakite',
+    '+15555550029',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'jordan.newsome@example.com',
+    'Jordan Newsome',
+    '+15555550030',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2024
+  );
+
+  PERFORM create_demo_profile(
+    'andre@example.com',
+    'Andre Sawyerr',
+    '+15555550031',
+    2025,
+    NULL,
+    'alumni'::public.app_role,
+    2025
+  );
+
+  PERFORM create_demo_profile(
+    'reginald@example.com',
+    'Reginald Alexander',
+    '+15555550032',
+    2026,
+    NULL,
+    'member'::public.app_role,
+    2025
   );
 END $$;
 
--- Create alumni record (using DO block to handle potential conflicts)
+-- Create alumni records (using DO block to handle potential conflicts)
+-- First, clean up any existing mock alumni records (not tied to auth.users)
+DELETE FROM public.alumni 
+WHERE email LIKE '%@example.com' 
+  AND user_id IS NULL;
+
 DO $$
 DECLARE
   alumni_user_id UUID;
 BEGIN
-  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'alumni@example.com' LIMIT 1;
-  
+  -- Dylan Darling (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'dylan@example.com' LIMIT 1;
   IF alumni_user_id IS NOT NULL THEN
-    -- Update if it already exists, otherwise insert
     IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
       UPDATE public.alumni SET
-        full_name = 'Demo Alumni',
-        email = 'alumni@example.com',
-        graduation_year = 2010,
+        full_name = 'Dylan Darling',
+        email = 'dylan@example.com',
+        graduation_year = 2025,
         current_position = 'Software Engineer',
         location = 'Atlanta, GA'
       WHERE user_id = alumni_user_id;
     ELSE
       INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
-      VALUES (alumni_user_id, 'Demo Alumni', 'alumni@example.com', 2010, 'Software Engineer', 'Atlanta, GA');
+      VALUES (alumni_user_id, 'Dylan Darling', 'dylan@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Marshall Williams (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'marshall@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Marshall Williams',
+        email = 'marshall@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Marshall Williams', 'marshall@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Ahmad Edwards (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'ahmad@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Ahmad Edwards',
+        email = 'ahmad@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Ahmad Edwards', 'ahmad@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Gregory Allen Jr. (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'gregory@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Gregory Allen Jr.',
+        email = 'gregory@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Gregory Allen Jr.', 'gregory@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Khimarhi Testamark (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'khimarhi@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Khimarhi Testamark',
+        email = 'khimarhi@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Khimarhi Testamark', 'khimarhi@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Chase Knox (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'chase@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Chase Knox',
+        email = 'chase@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Chase Knox', 'chase@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Daniel Miller (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'daniel@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Daniel Miller',
+        email = 'daniel@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Daniel Miller', 'daniel@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Mory Diakite (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'mory@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Mory Diakite',
+        email = 'mory@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Mory Diakite', 'mory@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Jordan Newsome (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'jordan.newsome@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Jordan Newsome',
+        email = 'jordan.newsome@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Jordan Newsome', 'jordan.newsome@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Joshua Carter (2024 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'joshua@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Joshua Carter',
+        email = 'joshua@example.com',
+        graduation_year = 2024,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Joshua Carter', 'joshua@example.com', 2024, 'Software Engineer', 'Atlanta, GA');
+    END IF;
+  END IF;
+
+  -- Andre Sawyerr (2025 Alumni)
+  SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'andre@example.com' LIMIT 1;
+  IF alumni_user_id IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
+      UPDATE public.alumni SET
+        full_name = 'Andre Sawyerr',
+        email = 'andre@example.com',
+        graduation_year = 2025,
+        current_position = 'Software Engineer',
+        location = 'Atlanta, GA'
+      WHERE user_id = alumni_user_id;
+    ELSE
+      INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
+      VALUES (alumni_user_id, 'Andre Sawyerr', 'andre@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
     END IF;
   END IF;
 END $$;
 
--- Additional standalone alumni records (not tied to auth.users) to fill Alumni portal
--- Use a function with SECURITY DEFINER to bypass RLS
-CREATE OR REPLACE FUNCTION seed_alumni_records() RETURNS void AS $$
-BEGIN
-  -- Clear existing mock alumni first to prevent duplicates
-  DELETE FROM public.alumni 
-  WHERE email LIKE '%@example.com' 
-    AND user_id IS NULL;
-
-  -- Insert alumni records (check for existing email to avoid duplicates)
-  INSERT INTO public.alumni (full_name, email, graduation_year, degree, current_company, current_position, location, linkedin_url, industry)
-  SELECT * FROM (VALUES
-    -- Technology & Engineering
-    ('Marcus Johnson', 'marcus.johnson@example.com', 2012, 'Computer Science', 'TechCorp', 'Senior Software Engineer', 'Atlanta, GA', 'https://linkedin.com/in/marcus-johnson-tech', 'Technology'),
-    ('Kevin Mitchell', 'kevin.mitchell@example.com', 2015, 'Electrical Engineering', 'Google', 'Product Manager', 'San Francisco, CA', 'https://linkedin.com/in/kevin-mitchell-pm', 'Technology'),
-    ('Tyler Brown', 'tyler.brown@example.com', 2017, 'Computer Science', 'Microsoft', 'Cloud Solutions Architect', 'Seattle, WA', 'https://linkedin.com/in/tyler-brown-cloud', 'Technology'),
-    ('Jordan Davis', 'jordan.davis@example.com', 2019, 'Information Systems', 'Amazon', 'Data Engineer', 'Austin, TX', 'https://linkedin.com/in/jordan-davis-data', 'Technology'),
-    ('Devin Taylor', 'devin.taylor@example.com', 2021, 'Software Engineering', 'Meta', 'Frontend Developer', 'Menlo Park, CA', 'https://linkedin.com/in/devin-taylor-dev', 'Technology'),
-    
-    -- Finance & Banking
-    ('Andre Thompson', 'andre.thompson@example.com', 2016, 'Finance', 'City Bank', 'Investment Analyst', 'New York, NY', 'https://linkedin.com/in/andre-thompson-finance', 'Finance'),
-    ('Malik Washington', 'malik.washington@example.com', 2013, 'Business Administration', 'Goldman Sachs', 'Vice President', 'New York, NY', 'https://linkedin.com/in/malik-washington-vp', 'Finance'),
-    ('Cameron Lewis', 'cameron.lewis@example.com', 2018, 'Economics', 'JPMorgan Chase', 'Financial Advisor', 'Chicago, IL', 'https://linkedin.com/in/cameron-lewis-advisor', 'Finance'),
-    ('Isaiah Martinez', 'isaiah.martinez@example.com', 2020, 'Accounting', 'Deloitte', 'Senior Consultant', 'Dallas, TX', 'https://linkedin.com/in/isaiah-martinez-consultant', 'Finance'),
-    
-    -- Healthcare & Medicine
-    ('Jamal Carter', 'jamal.carter@example.com', 2020, 'Public Health', 'HealthFirst', 'Project Manager', 'Los Angeles, CA', 'https://linkedin.com/in/jamal-carter-health', 'Healthcare'),
-    ('Darius Moore', 'darius.moore@example.com', 2014, 'Biology', 'Johns Hopkins Hospital', 'Research Coordinator', 'Baltimore, MD', 'https://linkedin.com/in/darius-moore-research', 'Healthcare'),
-    ('Terrence Jackson', 'terrence.jackson@example.com', 2017, 'Health Sciences', 'Mayo Clinic', 'Healthcare Administrator', 'Rochester, MN', 'https://linkedin.com/in/terrence-jackson-admin', 'Healthcare'),
-    
-    -- Education & Academia
-    ('Derrick Williams', 'derrick.williams@example.com', 2014, 'Education', 'State University', 'Assistant Dean of Students', 'Chicago, IL', 'https://linkedin.com/in/derrick-williams-education', 'Higher Education'),
-    ('Antonio Harris', 'antonio.harris@example.com', 2011, 'Mathematics', 'Howard University', 'Associate Professor', 'Washington, DC', 'https://linkedin.com/in/antonio-harris-professor', 'Higher Education'),
-    ('Reginald Green', 'reginald.green@example.com', 2016, 'History', 'Morehouse College', 'Assistant Professor', 'Atlanta, GA', 'https://linkedin.com/in/reginald-green-history', 'Higher Education'),
-    ('Marcus Wright', 'marcus.wright@example.com', 2019, 'Education', 'Atlanta Public Schools', 'High School Principal', 'Atlanta, GA', 'https://linkedin.com/in/marcus-wright-principal', 'Education'),
-    
-    -- Non-Profit & Community Service
-    ('Brandon Scott', 'brandon.scott@example.com', 2018, 'Social Work', 'Community Impact', 'Program Director', 'Houston, TX', 'https://linkedin.com/in/brandon-scott-nonprofit', 'Non‑Profit'),
-    ('Kendrick Adams', 'kendrick.adams@example.com', 2015, 'Public Administration', 'United Way', 'Community Outreach Manager', 'Detroit, MI', 'https://linkedin.com/in/kendrick-adams-outreach', 'Non‑Profit'),
-    ('Jermaine Foster', 'jermaine.foster@example.com', 2017, 'Social Work', 'Boys & Girls Club', 'Youth Program Coordinator', 'Philadelphia, PA', 'https://linkedin.com/in/jermaine-foster-youth', 'Non‑Profit'),
-    
-    -- Law & Legal
-    ('Tyrone Robinson', 'tyrone.robinson@example.com', 2013, 'Law', 'Robinson & Associates', 'Partner Attorney', 'Washington, DC', 'https://linkedin.com/in/tyrone-robinson-law', 'Legal'),
-    ('Darnell Phillips', 'darnell.phillips@example.com', 2016, 'Law', 'Public Defender Office', 'Public Defender', 'Miami, FL', 'https://linkedin.com/in/darnell-phillips-defender', 'Legal'),
-    ('Rashad Coleman', 'rashad.coleman@example.com', 2019, 'Law', 'Corporate Legal Group', 'Associate Attorney', 'Boston, MA', 'https://linkedin.com/in/rashad-coleman-corporate', 'Legal'),
-    
-    -- Business & Consulting
-    ('Malcolm Turner', 'malcolm.turner@example.com', 2012, 'Business Administration', 'McKinsey & Company', 'Senior Consultant', 'New York, NY', 'https://linkedin.com/in/malcolm-turner-consulting', 'Consulting'),
-    ('Dwayne Patterson', 'dwayne.patterson@example.com', 2015, 'Marketing', 'Procter & Gamble', 'Brand Manager', 'Cincinnati, OH', 'https://linkedin.com/in/dwayne-patterson-marketing', 'Consumer Goods'),
-    ('Trevon Banks', 'trevon.banks@example.com', 2018, 'Business', 'Salesforce', 'Account Executive', 'San Francisco, CA', 'https://linkedin.com/in/trevon-banks-sales', 'Technology'),
-    
-    -- Government & Public Service
-    ('Lamar Hayes', 'lamar.hayes@example.com', 2014, 'Political Science', 'City of Atlanta', 'City Council Member', 'Atlanta, GA', 'https://linkedin.com/in/lamar-hayes-council', 'Government'),
-    ('Quinton Reed', 'quinton.reed@example.com', 2017, 'Public Policy', 'U.S. Department of Education', 'Policy Analyst', 'Washington, DC', 'https://linkedin.com/in/quinton-reed-policy', 'Government'),
-    
-    -- Media & Entertainment
-    ('Jalen Brooks', 'jalen.brooks@example.com', 2016, 'Communications', 'ESPN', 'Sports Analyst', 'Bristol, CT', 'https://linkedin.com/in/jalen-brooks-media', 'Media'),
-    ('Darius King', 'darius.king@example.com', 2019, 'Journalism', 'CNN', 'News Producer', 'Atlanta, GA', 'https://linkedin.com/in/darius-king-journalism', 'Media'),
-    
-    -- Real Estate & Construction
-    ('Marcus Hill', 'marcus.hill@example.com', 2013, 'Business', 'Century 21', 'Real Estate Broker', 'Phoenix, AZ', 'https://linkedin.com/in/marcus-hill-realestate', 'Real Estate'),
-    ('Brandon Young', 'brandon.young@example.com', 2017, 'Civil Engineering', 'Turner Construction', 'Project Manager', 'Denver, CO', 'https://linkedin.com/in/brandon-young-construction', 'Construction'),
-    
-    -- Entrepreneurship
-    ('Kendall James', 'kendall.james@example.com', 2018, 'Business', 'TechStart Solutions', 'Founder & CEO', 'Austin, TX', 'https://linkedin.com/in/kendall-james-founder', 'Technology'),
-    ('Damon Price', 'damon.price@example.com', 2020, 'Business', 'Urban Eats', 'Co-Founder', 'Nashville, TN', 'https://linkedin.com/in/damon-price-entrepreneur', 'Food & Beverage')
-  ) AS v(full_name, email, graduation_year, degree, current_company, current_position, location, linkedin_url, industry)
-  WHERE NOT EXISTS (
-    SELECT 1 FROM public.alumni a WHERE a.email = v.email
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Execute the function
-SELECT seed_alumni_records();
-
--- Clean up the function
-DROP FUNCTION IF EXISTS seed_alumni_records();
+-- Mock alumni records removed - only real alumni (tied to auth.users) are kept
 
 -- STEP 3: CREATE EVENTS
 -- ============================================
@@ -443,7 +688,7 @@ SELECT
   NOW() + INTERVAL '3 days',
   NOW() + INTERVAL '3 days' + INTERVAL '2 hours',
   id
-FROM auth.users WHERE email = 'eboard@example.com'
+FROM auth.users WHERE email = 'doole@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -455,7 +700,7 @@ SELECT
   NOW() + INTERVAL '7 days',
   NOW() + INTERVAL '7 days' + INTERVAL '4 hours',
   id
-FROM auth.users WHERE email = 'chair@example.com'
+FROM auth.users WHERE email = 'jordan@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -467,7 +712,7 @@ SELECT
   NOW() + INTERVAL '14 days',
   NOW() + INTERVAL '14 days' + INTERVAL '3 hours',
   id
-FROM auth.users WHERE email = 'admin@example.com'
+FROM auth.users WHERE email = 'jeremiah@example.com'
 ON CONFLICT DO NOTHING;
 
 -- Additional demo events to fully populate Events & Dashboard (total ~8)
@@ -480,7 +725,7 @@ SELECT
   NOW() + INTERVAL '2 days',
   NOW() + INTERVAL '2 days' + INTERVAL '3 hours',
   id
-FROM auth.users WHERE email = 'member1@example.com'
+FROM auth.users WHERE email = 'grant@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -492,7 +737,7 @@ SELECT
   NOW() + INTERVAL '9 days',
   NOW() + INTERVAL '9 days' + INTERVAL '4 hours',
   id
-FROM auth.users WHERE email = 'chair@example.com'
+FROM auth.users WHERE email = 'jordan@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -504,7 +749,7 @@ SELECT
   NOW() + INTERVAL '5 days',
   NOW() + INTERVAL '5 days' + INTERVAL '2 hours',
   id
-FROM auth.users WHERE email = 'admin@example.com'
+FROM auth.users WHERE email = 'jeremiah@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.events (id, title, description, location, start_time, end_time, created_by)
@@ -516,7 +761,7 @@ SELECT
   NOW() + INTERVAL '11 days',
   NOW() + INTERVAL '11 days' + INTERVAL '2 hours',
   id
-FROM auth.users WHERE email = 'alumni@example.com'
+FROM auth.users WHERE email = 'dylan@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -530,7 +775,7 @@ SELECT
   NOW() - INTERVAL '1 hour'
 FROM public.events e
 CROSS JOIN auth.users u
-WHERE e.title = 'Interest Meeting' AND u.email = 'member1@example.com'
+WHERE e.title = 'Interest Meeting' AND u.email = 'grant@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -541,7 +786,7 @@ SELECT
   NOW() - INTERVAL '50 minutes'
 FROM public.events e
 CROSS JOIN auth.users u
-WHERE e.title = 'Interest Meeting' AND u.email = 'member2@example.com'
+WHERE e.title = 'Interest Meeting' AND u.email = 'jordan@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -552,7 +797,7 @@ SELECT
   NOW() - INTERVAL '2 days'
 FROM public.events e
 CROSS JOIN auth.users u
-WHERE e.title = 'Service Day' AND u.email = 'member1@example.com'
+WHERE e.title = 'Service Day' AND u.email = 'grant@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -565,7 +810,7 @@ SELECT
   gen_random_uuid(),
   'General',
   id
-FROM auth.users WHERE email = 'eboard@example.com'
+FROM auth.users WHERE email = 'doole@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.channels (id, name, created_by)
@@ -573,7 +818,7 @@ SELECT
   gen_random_uuid(),
   'Events & Announcements',
   id
-FROM auth.users WHERE email = 'admin@example.com'
+FROM auth.users WHERE email = 'jeremiah@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -590,7 +835,7 @@ BEGIN
     INSERT INTO public.channel_members (channel_id, user_id)
     SELECT c.id, u.id
     FROM public.channels c
-    JOIN auth.users u ON u.email IN ('admin@example.com', 'eboard@example.com', 'chair@example.com', 'member1@example.com', 'member2@example.com')
+    JOIN auth.users u ON u.email IN ('jeremiah@example.com', 'doole@example.com', 'grant@example.com', 'bryce@example.com', 'mael@example.com', 'jordan@example.com')
     WHERE c.name IN ('General', 'Events & Announcements')
       AND NOT EXISTS (
         SELECT 1
@@ -603,21 +848,21 @@ BEGIN
     INSERT INTO public.messages (channel_id, user_id, content)
     SELECT c.id, u.id, 'Welcome to the General channel! Use this space for everyday chapter communication.'
     FROM public.channels c
-    JOIN auth.users u ON u.email = 'admin@example.com'
+    JOIN auth.users u ON u.email = 'jeremiah@example.com'
     WHERE c.name = 'General'
     ON CONFLICT DO NOTHING;
 
     INSERT INTO public.messages (channel_id, user_id, content)
     SELECT c.id, u.id, 'Reminder: Interest Meeting is coming up this week. Please review your assigned tasks.'
     FROM public.channels c
-    JOIN auth.users u ON u.email = 'eboard@example.com'
+    JOIN auth.users u ON u.email = 'doole@example.com'
     WHERE c.name = 'General'
     ON CONFLICT DO NOTHING;
 
     INSERT INTO public.messages (channel_id, user_id, content)
     SELECT c.id, u.id, 'Looking forward to the Service Day event! Who is available to help with setup?'
     FROM public.channels c
-    JOIN auth.users u ON u.email = 'chair@example.com'
+    JOIN auth.users u ON u.email = 'jordan@example.com'
     WHERE c.name = 'General'
     ON CONFLICT DO NOTHING;
 
@@ -625,14 +870,14 @@ BEGIN
     INSERT INTO public.messages (channel_id, user_id, content)
     SELECT c.id, u.id, 'New event added: Career Panel with alumni from various industries. Please RSVP.'
     FROM public.channels c
-    JOIN auth.users u ON u.email = 'admin@example.com'
+    JOIN auth.users u ON u.email = 'jeremiah@example.com'
     WHERE c.name = 'Events & Announcements'
     ON CONFLICT DO NOTHING;
 
     INSERT INTO public.messages (channel_id, user_id, content)
     SELECT c.id, u.id, 'Service Day details have been updated with meeting point and timeline.'
     FROM public.channels c
-    JOIN auth.users u ON u.email = 'chair@example.com'
+    JOIN auth.users u ON u.email = 'jordan@example.com'
     WHERE c.name = 'Events & Announcements'
     ON CONFLICT DO NOTHING;
 
@@ -666,7 +911,7 @@ SELECT
   NOW() + INTERVAL '2 days'
 FROM auth.users eboard
 CROSS JOIN auth.users member1
-WHERE eboard.email = 'eboard@example.com' AND member1.email = 'member1@example.com'
+WHERE eboard.email = 'doole@example.com' AND member1.email = 'grant@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -681,7 +926,7 @@ SELECT
   NOW() + INTERVAL '5 days'
 FROM auth.users chair
 CROSS JOIN auth.users member2
-WHERE chair.email = 'chair@example.com' AND member2.email = 'member2@example.com'
+WHERE chair.email = 'jordan@example.com' AND member2.email = 'jordan@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -696,7 +941,7 @@ SELECT
   NULL,
   NOW() + INTERVAL '3 days'
 FROM auth.users admin
-WHERE admin.email = 'admin@example.com'
+WHERE admin.email = 'jeremiah@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -710,7 +955,7 @@ SELECT
   NULL,
   NOW() + INTERVAL '10 days'
 FROM auth.users eboard
-WHERE eboard.email = 'eboard@example.com'
+WHERE eboard.email = 'doole@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -724,7 +969,7 @@ SELECT
   NULL,
   NOW() - INTERVAL '1 day'
 FROM auth.users chair
-WHERE chair.email = 'chair@example.com'
+WHERE chair.email = 'jordan@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -738,7 +983,7 @@ SELECT
   NULL,
   NOW() + INTERVAL '6 days'
 FROM auth.users admin
-WHERE admin.email = 'admin@example.com'
+WHERE admin.email = 'jeremiah@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -751,7 +996,7 @@ SELECT
   gen_random_uuid(),
   'Chapter Documents',
   id
-FROM auth.users WHERE email = 'admin@example.com'
+FROM auth.users WHERE email = 'jeremiah@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.document_folders (id, name, created_by)
@@ -759,7 +1004,7 @@ SELECT
   gen_random_uuid(),
   'Member Resources',
   id
-FROM auth.users WHERE email = 'eboard@example.com'
+FROM auth.users WHERE email = 'doole@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.documents (id, folder_id, name, file_type, file_size, file_url, visibility, created_by, shared_with_roles)
@@ -775,7 +1020,7 @@ SELECT
   ARRAY['member','alumni']
 FROM public.document_folders f
 CROSS JOIN auth.users admin
-WHERE f.name = 'Chapter Documents' AND admin.email = 'admin@example.com'
+WHERE f.name = 'Chapter Documents' AND admin.email = 'jeremiah@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -792,7 +1037,7 @@ SELECT
   ARRAY['e_board','committee_chairman']
 FROM public.document_folders f
 CROSS JOIN auth.users eboard
-WHERE f.name = 'Member Resources' AND eboard.email = 'eboard@example.com'
+WHERE f.name = 'Member Resources' AND eboard.email = 'doole@example.com'
 LIMIT 1
 ON CONFLICT DO NOTHING;
 
@@ -809,7 +1054,7 @@ SELECT
   'announcement',
   FALSE,
   NOW() - INTERVAL '1 day'
-FROM auth.users WHERE email = 'member1@example.com'
+FROM auth.users WHERE email = 'grant@example.com'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.notifications (id, user_id, title, message, type, read, created_at)
@@ -821,7 +1066,7 @@ SELECT
   'event',
   FALSE,
   NOW() - INTERVAL '2 hours'
-FROM auth.users WHERE email = 'member2@example.com'
+FROM auth.users WHERE email = 'jordan@example.com'
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -830,14 +1075,14 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO public.notification_preferences (user_id, email_enabled, push_enabled)
 SELECT id, TRUE, TRUE
-FROM auth.users WHERE email = 'member1@example.com'
+FROM auth.users WHERE email = 'grant@example.com'
 ON CONFLICT (user_id) DO UPDATE SET
   email_enabled = EXCLUDED.email_enabled,
   push_enabled = EXCLUDED.push_enabled;
 
 INSERT INTO public.notification_preferences (user_id, email_enabled, push_enabled)
 SELECT id, TRUE, FALSE
-FROM auth.users WHERE email = 'member2@example.com'
+FROM auth.users WHERE email = 'jordan@example.com'
 ON CONFLICT (user_id) DO UPDATE SET
   email_enabled = EXCLUDED.email_enabled,
   push_enabled = EXCLUDED.push_enabled;
@@ -902,13 +1147,19 @@ DROP FUNCTION IF EXISTS create_demo_profile(TEXT, TEXT, TEXT, INTEGER, TEXT, pub
 -- DONE!
 -- ============================================
 -- After running this script, you can log in with any of these accounts:
---   - admin@example.com / DemoAdmin123! (Admin role)
---   - eboard@example.com / DemoEBoard123! (E-Board role)
---   - chair@example.com / DemoChair123! (Committee Chair role)
---   - member1@example.com / DemoMember123! (Member role)
---   - member2@example.com / DemoMember123! (Member role)
---   - alumni@example.com / DemoAlumni123! (Alumni role)
---   - member3@example.com through member18@example.com (if auth users were created)
+--   - jeremiah@example.com / DemoEBoard123! (Strategist - E-Board)
+--   - doole@example.com / DemoEBoard123! (Keeper of exchequer - E-Board)
+--   - grant@example.com / DemoEBoard123! (Lt. Strategist - E-Board)
+--   - bryce@example.com / DemoEBoard123! (Polemarch - E-Board)
+--   - mael@example.com / DemoEBoard123! (Vice Polemarch - E-Board)
+--   - don@example.com / DemoEBoard123! (Keeper of Records - E-Board)
+--   - carsen@example.com / DemoEBoard123! (Historian - E-Board)
+--   - jordan@example.com / DemoChair123! (Community Service Chairman)
+--   - malachi@example.com / DemoChair123! (Guide Right Chairman)
+--   - jared@example.com / DemoChair123! (Public Relations Chairman)
+--   - skylar@example.com / DemoChair123! (Programming Chairman)
+--   - kaden@example.com / DemoChair123! (Health & Wellness Chairman)
+--   - All other members listed above (if auth users were created)
 --
 -- All pages should now show rich, realistic demo data!
 -- 

@@ -154,33 +154,65 @@ const Attendance = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
-            <p className="text-muted-foreground mt-1">Check in to upcoming events</p>
-          </div>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
+          <p className="text-muted-foreground mt-1">Check in to upcoming events</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* QR Code Section */}
-          <div className="glass-card rounded-xl p-8 flex flex-col items-center justify-center">
-            <div className="text-center mb-6">
-              <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30 mb-2">
-                Active Event
-              </Badge>
-              <h2 className="text-2xl font-display font-bold">{currentEvent.title}</h2>
-              <p className="text-muted-foreground mt-1">
-                {format(parseISO(currentEvent.start_time), "MMMM d, yyyy")} • {format(parseISO(currentEvent.start_time), "h:mm a")}
-              </p>
+        <div className="glass-card rounded-xl p-8">
+          {/* Event Header */}
+          <div className="text-center mb-8">
+            <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30 mb-3">
+              Active Event
+            </Badge>
+            <h2 className="text-2xl font-display font-bold mb-2">{currentEvent.title}</h2>
+            <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                <span>
+                  {format(parseISO(currentEvent.start_time), "MMMM d, yyyy 'at' h:mm a")}
+                </span>
+              </div>
+              {currentEvent.end_time && (
+                <>
+                  <span>•</span>
+                  <span>Ends {format(parseISO(currentEvent.end_time), "h:mm a")}</span>
+                </>
+              )}
               {currentEvent.location && (
-                <p className="text-sm text-muted-foreground mt-1">{currentEvent.location}</p>
+                <>
+                  <span>•</span>
+                  <span>📍 {currentEvent.location}</span>
+                </>
               )}
             </div>
+            {currentEvent.description && (
+              <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{currentEvent.description}</p>
+            )}
+          </div>
 
+          {/* Stats Bar */}
+          <div className="flex items-center justify-center gap-8 mb-8 pb-6 border-b">
+            <div className="text-center">
+              <p className="text-3xl font-display font-bold gradient-text">
+                {attendanceCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Checked In</p>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <p className="text-3xl font-display font-bold gradient-text-gold">
+                {attendanceRate}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Attendance Rate</p>
+            </div>
+          </div>
+
+          {/* QR Code Section */}
+          <div className="flex flex-col items-center">
             {showQR ? (
-              <div className="relative">
-                {/* High-contrast QR wrapper for better phone scanning */}
+              <div className="relative mb-6">
                 <div className="w-64 h-64 bg-white rounded-2xl p-4 border-2 border-black flex items-center justify-center shadow-lg">
                   {currentEvent && (
                     <QRCodeSVG
@@ -196,7 +228,7 @@ const Attendance = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute -bottom-12 left-1/2 -translate-x-1/2"
+                  className="absolute -bottom-10 left-1/2 -translate-x-1/2"
                   onClick={() => {
                     setShowQR(false);
                     setTimeout(() => setShowQR(true), 100);
@@ -209,23 +241,23 @@ const Attendance = () => {
             ) : (
               <Button
                 variant="hero"
-                size="xl"
+                size="lg"
                 onClick={() => setShowQR(true)}
-                className="mt-8"
+                className="mb-6"
               >
-                <QrCode className="w-6 h-6 mr-2" />
+                <QrCode className="w-5 h-5 mr-2" />
                 Show QR Code
               </Button>
             )}
 
             {/* Check-in Status */}
-            {user && (
-              <div className="mt-8 w-full">
+            {user ? (
+              <div className="w-full max-w-md">
                 {isCheckedIn ? (
                   <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
-                    <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                    <CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-2" />
                     <p className="font-semibold text-foreground">You're checked in!</p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Checked in at {format(parseISO(userAttendance.checked_in_at), "h:mm a")}
                     </p>
                   </div>
@@ -242,58 +274,11 @@ const Attendance = () => {
                   </Button>
                 )}
               </div>
-            )}
-
-            {!user && (
-              <div className="mt-8 p-4 rounded-lg bg-secondary/30 text-center">
+            ) : (
+              <div className="p-4 rounded-lg bg-secondary/30 text-center max-w-md w-full">
                 <p className="text-sm text-muted-foreground">Please log in to check in</p>
               </div>
             )}
-
-            <div className="mt-12 flex items-center gap-8">
-              <div className="text-center">
-                <p className="text-4xl font-display font-bold gradient-text">
-                  {attendanceCount}
-                </p>
-                <p className="text-sm text-muted-foreground">Checked In</p>
-              </div>
-              <div className="w-px h-12 bg-border" />
-              <div className="text-center">
-                <p className="text-4xl font-display font-bold gradient-text-gold">
-                  {attendanceRate}%
-                </p>
-                <p className="text-sm text-muted-foreground">Attendance Rate</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Event Details */}
-          <div className="glass-card rounded-xl p-6">
-            <h2 className="text-xl font-display font-bold mb-4">Event Details</h2>
-            {currentEvent.description && (
-              <p className="text-muted-foreground mb-4">{currentEvent.description}</p>
-            )}
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">
-                  {format(parseISO(currentEvent.start_time), "EEEE, MMMM d, yyyy 'at' h:mm a")}
-                </span>
-              </div>
-              {currentEvent.end_time && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Ends: {format(parseISO(currentEvent.end_time), "h:mm a")}
-                  </span>
-                </div>
-              )}
-              {currentEvent.location && (
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">📍 {currentEvent.location}</span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CheckCircle2, Circle, Clock, Plus, Filter, Search, MoreVertical, Calendar, ListTodo, Edit, Trash2, Copy, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -178,11 +178,18 @@ const Tasks = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Assignees</SelectItem>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.user_id} value={profile.user_id}>
-                          {profile.full_name}
-                        </SelectItem>
-                      ))}
+                      {profiles.map((profile) => {
+                        const crossing = formatCrossingDisplay({
+                          crossing_year: profile.crossing_year,
+                          chapter: profile.chapter,
+                          line_order: profile.line_order,
+                        });
+                        return (
+                          <SelectItem key={profile.user_id} value={profile.user_id}>
+                            {crossing ? `${profile.full_name} (${crossing})` : profile.full_name}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

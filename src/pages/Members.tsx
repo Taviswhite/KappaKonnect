@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,6 +31,17 @@ const roleColors: Record<string, string> = {
   alumni: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
+// E-board display order: Polemarch first, then by title
+const EBOARD_ORDER: string[] = [
+  "Bryce Perkins",           // Polemarch
+  "Mael Blunt",              // Vice Polemarch
+  "Doole Gaiende Edwards",   // Keeper of exchequer
+  "Don Jordan Duplan",       // Keeper of Records
+  "Carsen Manuel",           // Historian
+  "Jeremiah Ramirez",        // Strategist
+  "Grant Hill",              // Lt. Strategist
+];
+
 const Members = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
@@ -44,24 +55,45 @@ const Members = () => {
   // Only admins can edit roles
   const canEditRoles = hasRole("admin");
 
-  // Fetch profiles from database
+  // Fetch profiles from database (exclude admin accounts)
   const { data: profiles = [], isLoading, error: profilesError } = useQuery({
     queryKey: ["all-profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
         .select("*")
         .order("full_name", { ascending: true });
       
-      if (error) {
-        console.error("Error fetching profiles:", error);
-        throw error;
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+        throw profilesError;
       }
+
+      // Get all user roles to identify admin accounts
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
       
-      // Deduplicate by user_id (keep first occurrence)
-      if (data) {
+      if (rolesError) {
+        console.error("Error fetching roles:", rolesError);
+        throw rolesError;
+      }
+
+      // Create a set of admin user IDs
+      const adminUserIds = new Set(
+        rolesData?.filter(r => r.role === "admin").map(r => r.user_id) || []
+      );
+
+      // Filter out admin accounts and deduplicate
+      if (profilesData) {
         const seen = new Set<string>();
-        return data.filter((profile) => {
+        return profilesData.filter((profile) => {
+          // Exclude admin accounts
+          if (adminUserIds.has(profile.user_id)) {
+            return false;
+          }
+          // Deduplicate by user_id (keep first occurrence)
           if (seen.has(profile.user_id)) {
             return false;
           }
@@ -70,7 +102,7 @@ const Members = () => {
         });
       }
       
-      return data || [];
+      return [];
     },
   });
 
@@ -112,6 +144,33 @@ const Members = () => {
     (filters.role !== "all" ? 1 : 0) +
     (filters.committee !== "all" ? 1 : 0);
 
+  // E-board first (in EBOARD_ORDER), then everyone by crossing year (newest) and line_order
+  const sortedMembers = useMemo(() => {
+    const norm = (s: string) => (s || "").toLowerCase().trim();
+    const eboardRank = (fullName: string) => {
+      const i = EBOARD_ORDER.findIndex((n) => norm(n) === norm(fullName));
+      return i >= 0 ? i : 999999;
+    };
+    return [...filteredMembers].sort((a, b) => {
+      const roleA = getRoleForUser(a.user_id);
+      const roleB = getRoleForUser(b.user_id);
+      const aIsEboard = roleA === "e_board";
+      const bIsEboard = roleB === "e_board";
+      if (aIsEboard && !bIsEboard) return -1;
+      if (!aIsEboard && bIsEboard) return 1;
+      if (aIsEboard && bIsEboard) {
+        return eboardRank(a.full_name ?? "") - eboardRank(b.full_name ?? "");
+      }
+      // Same tier: by crossing_year desc, then line_order asc
+      const yearA = (a as { crossing_year?: number | null }).crossing_year ?? -1;
+      const yearB = (b as { crossing_year?: number | null }).crossing_year ?? -1;
+      if (yearB !== yearA) return yearB - yearA;
+      const lineA = (a as { line_order?: number | null }).line_order ?? 999999;
+      const lineB = (b as { line_order?: number | null }).line_order ?? 999999;
+      return lineA - lineB;
+    });
+  }, [filteredMembers, userRoles]);
+
   const clearFilters = () => {
     setFilters({ role: "all", committee: "all" });
   };
@@ -126,6 +185,19 @@ const Members = () => {
   // Calculate alumni count
   const alumniCount = profiles.filter(
     (m) => getRoleForUser(m.user_id) === "alumni"
+  ).length;
+
+  // Calculate "New This Year" - members from the latest crossing year
+  // Find the latest crossing year
+  const crossingYears = profiles
+    .map((p) => (p as any).crossing_year)
+    .filter((year): year is number => year !== null && year !== undefined);
+  
+  const latestCrossingYear = crossingYears.length > 0 ? Math.max(...crossingYears) : 0;
+  
+  // Count members with the latest crossing year
+  const newThisYear = profiles.filter(
+    (m) => (m as any).crossing_year === latestCrossingYear && latestCrossingYear > 0
   ).length;
 
   return (
@@ -244,7 +316,7 @@ const Members = () => {
             <p className="text-sm text-muted-foreground">Alumni</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
-            <p className="text-2xl font-display font-bold text-foreground">0</p>
+            <p className="text-2xl font-display font-bold text-foreground">{newThisYear}</p>
             <p className="text-sm text-muted-foreground">New This Year</p>
           </div>
         </div>
@@ -276,7 +348,7 @@ const Members = () => {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMembers.map((member, index) => {
+            {sortedMembers.map((member, index) => {
               const role = getRoleForUser(member.user_id);
               const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
               return (
@@ -320,6 +392,11 @@ const Members = () => {
                           {member.committee}
                         </p>
                       )}
+                      {formatCrossingDisplay(member) && (
+                        <p className="text-sm text-muted-foreground mt-1 font-medium">
+                          {formatCrossingDisplay(member)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-border space-y-2">
@@ -352,13 +429,14 @@ const Members = () => {
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-[50px]">Member</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Crossing</TableHead>
                     <TableHead>Committee</TableHead>
                     <TableHead>Contact</TableHead>
                     {canEditRoles && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMembers.map((member) => {
+                  {sortedMembers.map((member) => {
                     const role = getRoleForUser(member.user_id);
                     const roleLabel = role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
                     return (
@@ -381,6 +459,9 @@ const Members = () => {
                           <Badge variant="outline" className={cn("text-xs", roleColors[role] || "bg-muted")}>
                             {roleLabel}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-medium">
+                          {formatCrossingDisplay(member) || "-"}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{member.committee || "-"}</TableCell>
                         <TableCell>

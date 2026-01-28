@@ -32,7 +32,7 @@ import {
   Download,
   RefreshCw
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -441,6 +441,9 @@ const AdminPanel = () => {
                             ) : (
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatCrossingDisplay({ crossing_year: member.crossing_year, chapter: member.chapter, line_order: member.line_order }) || "-"}
                           </TableCell>
                           <TableCell>
                             <Badge 

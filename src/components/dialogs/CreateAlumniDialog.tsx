@@ -19,7 +19,9 @@ const alumniSchema = z.object({
   graduation_year: z.number().min(1900).max(2100),
   company: z.string().optional(),
   position: z.string().optional(),
+  industry: z.string().optional(),
   location: z.string().optional(),
+  degree: z.string().optional(),
   linkedin_url: z.string().url("Invalid URL").optional().or(z.literal("")),
   willing_to_mentor: z.boolean().default(false),
 });
@@ -89,7 +91,9 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
             graduation_year: data.graduation_year,
             current_company: data.company || null,
             current_position: data.position || null,
+            industry: data.industry || null,
             location: data.location || null,
+            degree: data.degree || null,
             linkedin_url: data.linkedin_url || null,
           });
 
@@ -153,7 +157,26 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
             {errors.graduation_year && <p className="text-sm text-destructive">{errors.graduation_year.message}</p>}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="industry">Career Field / Industry</Label>
+            <Input
+              id="industry"
+              {...register("industry")}
+              placeholder="e.g., Investment Banking, Tech, Law, Medicine"
+            />
+            <p className="text-xs text-muted-foreground">Primary career field or industry</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="position">Position / Title</Label>
+              <Input
+                id="position"
+                {...register("position")}
+                placeholder="e.g., Senior Analyst, Software Engineer"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
               <Input
@@ -162,24 +185,26 @@ export function CreateAlumniDialog({ children }: CreateAlumniDialogProps) {
                 placeholder="Company Name"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="position">Position</Label>
-              <Input
-                id="position"
-                {...register("position")}
-                placeholder="Job Title"
-              />
-            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              {...register("location")}
-              placeholder="City, State"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                {...register("location")}
+                placeholder="City, State"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="degree">Degree</Label>
+              <Input
+                id="degree"
+                {...register("degree")}
+                placeholder="e.g., B.S. Computer Science"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

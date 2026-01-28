@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ListTodo } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { formatCrossingDisplay } from "@/lib/utils";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -39,16 +40,28 @@ export function CreateTaskDialog({ children }: CreateTaskDialogProps) {
   // Check if user can assign tasks (only E-Board, admins, and committee chairmen)
   const canAssignTasks = hasRole("admin") || hasRole("e_board") || hasRole("committee_chairman");
 
-  // Fetch members for assignment
+  // Fetch members for assignment (exclude admin accounts)
   const { data: members = [] } = useQuery({
     queryKey: ["members"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, user_id")
+        .select("id, full_name, user_id, crossing_year, chapter, line_order")
         .order("full_name");
-      if (error) throw error;
-      return data;
+      
+      if (profilesError) throw profilesError;
+      
+      // Get admin user IDs to exclude
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      
+      // Filter out admin accounts
+      return (profilesData || []).filter(p => !adminUserIds.has(p.user_id));
     },
   });
 
@@ -225,11 +238,18 @@ export function CreateTaskDialog({ children }: CreateTaskDialogProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.user_id}>
-                      {member.full_name}
-                    </SelectItem>
-                  ))}
+                  {members.map((member) => {
+                    const crossing = formatCrossingDisplay({
+                      crossing_year: member.crossing_year,
+                      chapter: member.chapter,
+                      line_order: member.line_order,
+                    });
+                    return (
+                      <SelectItem key={member.id} value={member.user_id}>
+                        {crossing ? `${member.full_name} (${crossing})` : member.full_name}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

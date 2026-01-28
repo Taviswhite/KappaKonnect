@@ -105,15 +105,26 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
     queryFn: async () => {
       if (!searchQuery.trim() || searchQuery.length < 2) return { members: [], events: [], tasks: [], documents: [] };
 
+      // Get admin user IDs to exclude from search
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+
       const [membersResult, eventsResult, tasksResult, documentsResult] = await Promise.all([
-        supabase.from("profiles").select("user_id, full_name, email").ilike("full_name", `%${searchQuery}%`).limit(5),
+        supabase.from("profiles").select("user_id, full_name, email, crossing_year, chapter, line_order").ilike("full_name", `%${searchQuery}%`).limit(10),
         supabase.from("events").select("id, title, start_time").ilike("title", `%${searchQuery}%`).limit(5),
         supabase.from("tasks").select("id, title, status").ilike("title", `%${searchQuery}%`).limit(5),
         supabase.from("documents").select("id, name, file_type").ilike("name", `%${searchQuery}%`).limit(5),
       ]);
 
+      // Filter out admin accounts from members search results
+      const filteredMembers = (membersResult.data || []).filter(m => !adminUserIds.has(m.user_id)).slice(0, 5);
+
       return {
-        members: membersResult.data || [],
+        members: filteredMembers,
         events: eventsResult.data || [],
         tasks: tasksResult.data || [],
         documents: documentsResult.data || [],
@@ -205,16 +216,23 @@ export function Header({ onMobileMenuToggle }: HeaderProps) {
                               Members ({searchResults.members.length})
                             </h4>
                             <div className="space-y-1">
-                              {searchResults.members.map((member: any) => (
-                                <Button
-                                  key={member.user_id}
-                                  variant="ghost"
-                                  className="w-full justify-start"
-                                  onClick={() => handleSearchResultClick("member", member.user_id)}
-                                >
-                                  {member.full_name} ({member.email})
-                                </Button>
-                              ))}
+                              {searchResults.members.map((member: any) => {
+                                const crossing = formatCrossingDisplay({
+                                  crossing_year: member.crossing_year,
+                                  chapter: member.chapter,
+                                  line_order: member.line_order,
+                                });
+                                return (
+                                  <Button
+                                    key={member.user_id}
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                    onClick={() => handleSearchResultClick("member", member.user_id)}
+                                  >
+                                    {[crossing ? `${member.full_name} (${crossing})` : member.full_name, member.email].filter(Boolean).join(" – ")}
+                                  </Button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

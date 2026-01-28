@@ -51,6 +51,8 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
   const location = useLocation();
   const { hasRole } = useAuth();
   const isAdmin = hasRole("admin");
+  const hideEventsForAlumni = hasRole("alumni") && !hasRole("admin") && !hasRole("e_board") && !hasRole("committee_chairman");
+  const navItems = menuItems.filter((item) => !(hideEventsForAlumni && item.path === "/events"));
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -119,7 +121,7 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => {
+          {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link

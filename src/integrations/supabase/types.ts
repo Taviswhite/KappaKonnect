@@ -17,7 +17,9 @@ export type Database = {
       alumni: {
         Row: {
           avatar_url: string | null
+          chapter: string | null
           created_at: string
+          crossing_year: number | null
           current_company: string | null
           current_position: string | null
           degree: string | null
@@ -27,6 +29,8 @@ export type Database = {
           id: string
           industry: string | null
           linkedin_url: string | null
+          line_label: string | null
+          line_order: number | null
           location: string | null
           updated_at: string
           user_id: string | null
@@ -43,6 +47,7 @@ export type Database = {
           id?: string
           industry?: string | null
           linkedin_url?: string | null
+          line_label?: string | null
           location?: string | null
           updated_at?: string
           user_id?: string | null
@@ -59,6 +64,7 @@ export type Database = {
           id?: string
           industry?: string | null
           linkedin_url?: string | null
+          line_label?: string | null
           location?: string | null
           updated_at?: string
           user_id?: string | null
@@ -368,6 +374,7 @@ export type Database = {
           graduation_year: number | null
           id: string
           line_name: string | null
+          line_order: number | null
           linkedin_url: string | null
           phone: string | null
           updated_at: string
@@ -385,6 +392,7 @@ export type Database = {
           graduation_year?: number | null
           id?: string
           line_name?: string | null
+          line_order?: number | null
           linkedin_url?: string | null
           phone?: string | null
           updated_at?: string
@@ -402,6 +410,7 @@ export type Database = {
           graduation_year?: number | null
           id?: string
           line_name?: string | null
+          line_order?: number | null
           linkedin_url?: string | null
           phone?: string | null
           updated_at?: string

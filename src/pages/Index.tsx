@@ -99,16 +99,29 @@ const Index = () => {
     showErrorToast(tasksError, "Failed to load tasks");
   }
 
-  // Fetch member count (admin/officer only)
+  // Fetch member count (admin/officer only) - exclude admin accounts
   const { data: memberCount = 0, error: memberCountError } = useQuery({
     queryKey: ["member-count"],
     queryFn: async () => {
-      const { count, error } = await supabase
+      // Get all profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
-        .select("*", { count: "exact", head: true });
+        .select("user_id");
       
-      if (error) throw error;
-      return count || 0;
+      if (profilesError) throw profilesError;
+      
+      // Get admin user IDs to exclude
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      
+      // Count profiles excluding admin accounts
+      const nonAdminCount = profilesData?.filter(p => !adminUserIds.has(p.user_id)).length || 0;
+      
+      return nonAdminCount;
     },
     enabled: canViewSensitiveStats,
   });
