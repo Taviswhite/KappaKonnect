@@ -5,7 +5,7 @@ UPDATE public.alumni SET graduation_year = 2024
 WHERE line_label = 'SPRING 2024' AND (full_name = 'Marshall Williams' OR full_name LIKE 'Marshall Williams%');
 
 UPDATE public.alumni SET graduation_year = 2024
-WHERE line_label = 'SPRING 2024' AND (full_name = 'Khimarhi Testamark' OR full_name LIKE 'Khimarhi Testamark%');
+WHERE line_label = 'SPRING 2024' AND (full_name = 'Kimahri Testamrk' OR full_name LIKE 'Kimahri Testamrk%');
 
 UPDATE public.alumni SET graduation_year = 2025
 WHERE line_label = 'SPRING 2024' AND (full_name = 'Chase Knox' OR full_name LIKE 'Chase Knox%');

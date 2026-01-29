@@ -32,27 +32,25 @@ type AlumniRow = {
   [k: string]: unknown;
 };
 
-const LINE_FILTER_OPTIONS = [
-  "All lines",
-  "SPRING 1985",
-  "SPRING 1986",
-  "SPRING 1992",
-  "SPRING 1993",
-  "SPRING 1998",
-  "SPRING 2001",
-  "SPRING 2007",
-  "SPRING 2009",
-  "SPRING 2010",
-  "SPRING 2012",
-  "SPRING 2013",
-  "SPRING 2014",
-  "SPRING 2016",
-  "SPRING 2017",
-  "SPRING 2022",
-  "FALL 2023",
-  "SPRING 2024",
-  "SPRING 2025",
-] as const;
+// Line filter options: "All lines" plus every line that has at least one member (so filter never shows empty)
+function getLineFilterOptions(alumni: { line_label?: string | null }[]): string[] {
+  const toShort = (label: string | null | undefined): string => {
+    if (!label || !String(label).trim()) return "";
+    const s = String(label).trim();
+    const m = s.match(/^(SPRING|FALL|Spring|Fall)\s+(\d{4})/i);
+    return m ? `${m[1].toUpperCase()} ${m[2]}` : s;
+  };
+  const yearFrom = (label: string): number => {
+    const n = label.match(/\b(19|20)\d{2}\b/);
+    return n ? parseInt(n[0], 10) : 0;
+  };
+  const labels = new Set<string>();
+  for (const a of alumni) {
+    const short = toShort(a.line_label);
+    if (short) labels.add(short);
+  }
+  return ["All lines", ...Array.from(labels).sort((a, b) => yearFrom(b) - yearFrom(a))];
+}
 
 const Alumni = () => {
   const [search, setSearch] = useState("");
@@ -200,7 +198,7 @@ const Alumni = () => {
               <SelectValue placeholder="Filter by line" />
             </SelectTrigger>
             <SelectContent>
-              {LINE_FILTER_OPTIONS.map((opt) => (
+              {getLineFilterOptions(alumni).map((opt) => (
                 <SelectItem key={opt} value={opt === "All lines" ? "all" : opt}>
                   {opt}
                 </SelectItem>
@@ -283,12 +281,14 @@ const Alumni = () => {
                                   Class of {gy}
                                 </Badge>
                               )}
-                              {alum.industry && (
-                                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                            </div>
+                            {alum.industry && (
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <Badge variant="outline" className="text-xs bg-primary/20 text-primary border-primary/30">
                                   {alum.industry}
                                 </Badge>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

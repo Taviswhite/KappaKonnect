@@ -8,10 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { avatarUrlForAlumni } from "@/lib/utils";
 
 // Chapter Advisor names to display
-// Include both correct and legacy spellings so it still matches until the migration is applied
 const ADVISOR_NAMES = [
   "Presley Nelson Jr",
-  "Presly Nelson Jr",
   "Demar",
   "Innocent",
   "Pawlos Germay",

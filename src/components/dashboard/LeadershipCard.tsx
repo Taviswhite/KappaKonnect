@@ -25,7 +25,6 @@ type EBoardMember = {
 // Chapter Advisor names to display
 const ADVISOR_NAMES = [
   "Presley Nelson Jr",
-  "Presly Nelson Jr",
   "Demar",
   "Innocent",
   "Pawlos Germay",

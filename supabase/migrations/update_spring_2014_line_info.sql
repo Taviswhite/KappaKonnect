@@ -10,7 +10,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'blake@example.com'),
   line_name = 'T.Y.K.O.O.N.',
   location = COALESCE(location, 'Los Angeles, CA'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Fashion Design/Entrepreneurship'
 WHERE (full_name = 'Blake Van Putten' AND line_label = 'SPRING 2014')
    OR email = 'blake@example.com';
@@ -20,7 +20,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'desmond@example.com'),
   line_name = 'POLITIKALLY KORRECT',
   location = COALESCE(location, 'Houston, TX'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Public Administration'
 WHERE (full_name = 'Desmond Taylor' AND line_label = 'SPRING 2014')
    OR email = 'desmond@example.com';
@@ -30,7 +30,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'malcolm@example.com'),
   line_name = 'STONE KOLD',
   location = COALESCE(location, 'Englewood, NJ'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Acting/Entertainment'
 WHERE (full_name = 'Malcolm Carter' AND line_label = 'SPRING 2014')
    OR email = 'malcolm@example.com';
@@ -40,7 +40,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'william@example.com'),
   line_name = 'FOUR LOKO',
   location = COALESCE(location, 'Clayton, NC'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Finance/Investment Banking'
 WHERE (full_name = 'William Clayton III' AND line_label = 'SPRING 2014')
    OR email = 'william@example.com';
@@ -50,7 +50,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'william.h@example.com'),
   line_name = 'MADE IN FULL',
   location = COALESCE(location, 'Denver, CO'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Consulting'
 WHERE (full_name = 'William Harris' AND line_label = 'SPRING 2014')
    OR email = 'william.h@example.com';
@@ -60,7 +60,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'vernon@example.com'),
   line_name = 'CRENSHAW K.I.N.G.',
   location = COALESCE(location, 'Los Angeles, CA'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Grooming/Entrepreneurship'
 WHERE (full_name = 'Vernon Yancy' AND line_label = 'SPRING 2014')
    OR email = 'vernon@example.com';
@@ -79,7 +79,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'andrew@example.com'),
   line_name = 'KOLLATERAL DAMAGE',
   location = COALESCE(location, 'Detroit, MI'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Media/Journalism'
 WHERE (full_name = 'Andrew Melton' AND line_label = 'SPRING 2014')
    OR email = 'andrew@example.com';
@@ -90,7 +90,7 @@ UPDATE public.alumni SET
   full_name = 'Dominick Lewis (HK)',
   line_name = 'PABLO ESKOBAR',
   location = COALESCE(location, 'Los Angeles, CA'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Sports Management/Modeling'
 WHERE (full_name = 'Dominick Lewis' AND line_label = 'SPRING 2014')
    OR full_name = 'Dominick Lewis (HK)'
@@ -101,7 +101,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'kyle@example.com'),
   line_name = 'BLITZKRIEG',
   location = COALESCE(location, 'Chicago, IL'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Real Estate'
 WHERE (full_name = 'Kyle Nichols' AND line_label = 'SPRING 2014')
    OR email = 'kyle@example.com';
@@ -111,7 +111,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'devin@example.com'),
   line_name = 'KAPTAIN AMERIKA',
   location = COALESCE(location, 'Philadelphia, PA'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Music/DJing'
 WHERE (full_name = 'Devin Merritt' AND line_label = 'SPRING 2014')
    OR email = 'devin@example.com';
@@ -121,7 +121,7 @@ UPDATE public.alumni SET
   email = COALESCE(email, 'jordan@example.com'),
   line_name = 'STATE PROPERTY',
   location = COALESCE(location, 'Philadelphia, PA'),
-  graduation_year = 0,
+  graduation_year = 2017,
   industry = 'Music Management/Marketing'
 WHERE (full_name = 'Jordan Bailey' AND line_label = 'SPRING 2014')
    OR email = 'jordan@example.com';

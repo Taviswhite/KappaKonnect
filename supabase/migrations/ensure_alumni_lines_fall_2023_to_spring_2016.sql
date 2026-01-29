@@ -1,25 +1,39 @@
--- Backfill line_label for existing alumni (Fall 2023, Spring 2022, Spring 2017)
--- Then insert all historic lines from Spring 2016 down to Spring 1985.
--- alumni columns: full_name, graduation_year, line_label, crossing_year, chapter, line_order (and optional email, etc.)
+-- Ensure Fall 2023 through Spring 2016 (and older) alumni show in the alumni portal
+-- 1. Ensure columns exist and backfill line_label for 2023, 2022, 2017
+-- 2. Insert missing historic lines (Spring 2016 down to Spring 1985) if not present
+-- 3. Spring 2014 career/location/industry updates are in this file; for 2025/2024/2023/2022/2017 run add_alumni_career_info.sql
 
--- Ensure line_label and crossing columns exist (in case add_crossing_to_alumni was not run)
+-- Ensure line_label, crossing, and career columns exist
 ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS line_label text;
 ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS crossing_year integer;
 ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS chapter text;
 ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS line_order integer;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS industry text;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS current_company text;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS current_position text;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS location text;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS degree text;
+ALTER TABLE public.alumni ADD COLUMN IF NOT EXISTS line_name text;
 
--- Set line_label for existing alumni (short form for filter: season + year only)
+-- Backfill line_label for any alumni that have crossing_year but missing line_label
+-- (so they show under correct section: FALL 2023, SPRING 2022, SPRING 2017, SPRING 2014)
 UPDATE public.alumni SET line_label = 'FALL 2023'
-  WHERE crossing_year = 2023 AND line_order IN (1,2,3);
+  WHERE crossing_year = 2023 AND (line_label IS NULL OR line_label = '');
 UPDATE public.alumni SET line_label = 'SPRING 2022'
-  WHERE crossing_year = 2022 AND chapter IS NOT NULL;
+  WHERE crossing_year = 2022 AND (line_label IS NULL OR line_label = '');
 UPDATE public.alumni SET line_label = 'SPRING 2017'
-  WHERE crossing_year = 2017 AND chapter IS NOT NULL;
+  WHERE crossing_year = 2017 AND (line_label IS NULL OR line_label = '');
+UPDATE public.alumni SET line_label = 'SPRING 2014'
+  WHERE crossing_year = 2014 AND (line_label IS NULL OR line_label = '');
 
--- Helper: insert a line (avoids repeating column list). We use INSERT ... SELECT from VALUES.
--- Format: (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
+-- Normalize existing line_label to short form for filter (e.g. "SPRING 2012 - 13 UNKATCHABLE..." -> "SPRING 2012")
+UPDATE public.alumni
+SET line_label = UPPER(REGEXP_REPLACE(REGEXP_REPLACE(line_label, ' - .*$', ''), '^Spring ', 'SPRING '))
+WHERE line_label ~ ' - ' OR line_label ~ '^Spring '
+  AND line_label IS NOT NULL AND line_label != '';
 
--- SPRING 2016 - 12 W.A.R.R.I.O.R.S. OF THE XI DYNASTY
+-- Insert Spring 2016 through Spring 1985 if not present (same data as seed_all_alumni_lines)
+-- SPRING 2016
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Arin Holliman', 2019, 'SPRING 2016', 2016, 'Xi (Howard University)', 1),
@@ -36,7 +50,7 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2014 - 12 K.O.N.V.I.C.T.S. OF THE XI KOMMISSION
+-- SPRING 2014
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Blake Van Putten', 2017, 'SPRING 2014', 2014, 'Xi (Howard University)', 1),
@@ -54,7 +68,7 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2013 - 16 O.U.T.L.A.W.S. OF THE XI REBELLION
+-- SPRING 2013
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Kristopher Kirkpatrick', 2016, 'SPRING 2013', 2013, 'Xi (Howard University)', 1),
@@ -76,26 +90,26 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.
+-- SPRING 2012 (short line_label for filter)
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
-  ('Castell Abner III', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 1),
-  ('Justin "Jam" Miles', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 2),
-  ('Joshua Crockett', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 3),
-  ('Daillen Hughes', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 4),
-  ('Christopher Steele', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 5),
-  ('Evan Stephens', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 6),
-  ('Kameron Leach', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 7),
-  ('Garnett Veney', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 8),
-  ('Brandon Harris', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 9),
-  ('Joshua Kato', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 10),
-  ('Jordan Taylor', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 11),
-  ('Carnegie Tirado', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 12),
-  ('Bryan Rodgers', 2015, 'SPRING 2012 - 13 UNKATCHABLE B.A.N.D.I.T.S.', 2012, 'Xi (Howard University)', 13)
+  ('Castell Abner III', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 1),
+  ('Justin "Jam" Miles', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 2),
+  ('Joshua Crockett', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 3),
+  ('Daillen Hughes', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 4),
+  ('Christopher Steele', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 5),
+  ('Evan Stephens', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 6),
+  ('Kameron Leach', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 7),
+  ('Garnett Veney', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 8),
+  ('Brandon Harris', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 9),
+  ('Joshua Kato', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 10),
+  ('Jordan Taylor', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 11),
+  ('Carnegie Tirado', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 12),
+  ('Bryan Rodgers', 2015, 'SPRING 2012', 2012, 'Xi (Howard University)', 13)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2010 - 12 KULPRITS OF K.H.A.O.S.
+-- SPRING 2010
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Lenon "Ricky" Thompson', 2013, 'SPRING 2010', 2010, 'Xi (Howard University)', 1),
@@ -113,42 +127,41 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2009 - 16 Sons of the Diamond H.E.I.S.T.
+-- SPRING 2009
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Donald Tyson', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 1),
   ('Deric Canty', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 2),
   ('Calvin Simmons Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 3),
-  ('Alix Martin', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 4),
-  ('Robert Spears', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 5),
-  ('Jason Cole', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 6),
-  ('Maurice Cheeks', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 7),
-  ('Jeremy Williams', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 8),
-  ('Victor Medina', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 9),
-  ('Rodney Hawkins Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 10),
-  ('Alvin Staley Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 11),
-  ('Jarred McKee', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 12),
-  ('Brandon Montgomery', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 13),
-  ('Darrelle Washington', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 14),
-  ('Khalil Bus-Kwofe', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 15),
-  ('Kyle Smith', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 16)
+  ('Robert Spears', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 4),
+  ('Jason Cole', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 5),
+  ('Maurice Cheeks', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 6),
+  ('Jeremy Williams', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 7),
+  ('Victor Medina', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 8),
+  ('Rodney Hawkins Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 9),
+  ('Alvin Staley Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 10),
+  ('Jarred McKee', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 11),
+  ('Brandon Montgomery', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 12),
+  ('Darrelle Washington', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 13),
+  ('Khalil Bus-Kwofe', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 14),
+  ('Kyle Smith', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 15)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2007 - 7 REBELS FOR THE XI KAUSE
+-- SPRING 2007
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
-  ('Emmanuel Onyeyerim', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 1),
-  ('Arinze Emeagwali', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 2),
-  ('Joseph Dagg Jr.', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 3),
-  ('Presley Nelson Jr.', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 4),
-  ('Jason Rodriguez', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 5),
-  ('Justin Faust', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 6),
-  ('Brandon Starling', 2010, 'SPRING 2007 - 7 REBELS FOR THE XI KAUSE', 2007, 'Xi (Howard University)', 7)
+  ('Emmanuel Onyeyerim', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 1),
+  ('Arinze Emeagwali', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 2),
+  ('Joseph Dagg Jr.', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 3),
+  ('Presley Nelson Jr.', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 4),
+  ('Jason Rodriguez', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 5),
+  ('Justin Faust', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 6),
+  ('Brandon Starling', 2010, 'SPRING 2007', 2007, 'Xi (Howard University)', 7)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2001 - 6 H.I.T.M.E.N. OF THE XI K.A.R.T.E.L. (R.I.P removed)
+-- SPRING 2001
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Keith Stone', 2004, 'SPRING 2001', 2001, 'Xi (Howard University)', 1),
@@ -160,26 +173,26 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 1998 - 13 DIAMOND K.R.O.O.K.S. (DNE removed)
+-- SPRING 1998
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
-  ('Corgins Banner', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 1),
-  ('Thomas Houston III', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 2),
-  ('Lakeem Dwight', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 3),
-  ('Darius Bickham', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 4),
-  ('Mario Wimberly', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 5),
-  ('Lee Smith III', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 6),
-  ('Byron Whyte', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 7),
-  ('Lir Burke III', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 8),
-  ('Gary Monroe', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 9),
-  ('Bakari Adams', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 10),
-  ('Abdullah Zaki II', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 11),
-  ('Mike Smith', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 12),
-  ('Leonard Stevens Jr', 2001, 'SPRING 1998 - 14 DIAMOND K.R.O.O.K.S.', 1998, 'Xi (Howard University)', 13)
+  ('Corgins Banner', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 1),
+  ('Thomas Houston III', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 2),
+  ('Lakeem Dwight', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 3),
+  ('Darius Bickham', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 4),
+  ('Mario Wimberly', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 5),
+  ('Lee Smith III', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 6),
+  ('Byron Whyte', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 7),
+  ('Lir Burke III', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 8),
+  ('Gary Monroe', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 9),
+  ('Bakari Adams', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 10),
+  ('Abdullah Zaki II', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 11),
+  ('Mike Smith', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 12),
+  ('Leonard Stevens Jr', 2001, 'SPRING 1998', 1998, 'Xi (Howard University)', 13)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 1993 - T.E.K.H. 8 (skip position 5; Tyrone = 6, then 7–9)
+-- SPRING 1993 (skip position 5; Tyrone = 6, then 7–9)
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('James Mcdowell', 1996, 'SPRING 1993', 1993, 'Xi (Howard University)', 1),
@@ -193,7 +206,7 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 1992 - skip position 3; Amia Foston 18, Marshall 19, Byron Foston 20
+-- SPRING 1992 (skip position 3; Amia Foston 18, Marshall 19, Byron Foston 20)
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Lance Miller', 1995, 'SPRING 1992', 1992, 'Xi (Howard University)', 1),
@@ -218,7 +231,7 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- Spring 1986 - The Notorious 15 M.T.M.F
+-- SPRING 1986
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Lance Wyatt', 1989, 'SPRING 1986', 1986, 'Xi (Howard University)', 1),
@@ -239,7 +252,7 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- Spring 1985 - Obscene 13
+-- SPRING 1985 (13: Obscene 13; Max Maurice 10, Phillip 11, Kenny 12, Paul 13)
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Michael McFadden', 1988, 'SPRING 1985', 1985, 'Xi (Howard University)', 1),
@@ -257,3 +270,89 @@ SELECT * FROM (VALUES
   ('Paul Chastang', 1988, 'SPRING 1985', 1985, 'Xi (Howard University)', 13)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
+
+-- =============================================================================
+-- Apply career/location/industry for Spring 2014 (so careers show in portal)
+-- =============================================================================
+UPDATE public.alumni SET
+  email = COALESCE(email, 'blake@example.com'),
+  line_name = COALESCE(line_name, 'T.Y.K.O.O.N.'),
+  location = COALESCE(location, 'Los Angeles, CA'),
+  industry = COALESCE(industry, 'Fashion Design/Entrepreneurship')
+WHERE (full_name = 'Blake Van Putten' AND line_label = 'SPRING 2014') OR email = 'blake@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'desmond@example.com'),
+  line_name = COALESCE(line_name, 'POLITIKALLY KORRECT'),
+  location = COALESCE(location, 'Houston, TX'),
+  industry = COALESCE(industry, 'Public Administration')
+WHERE (full_name = 'Desmond Taylor' AND line_label = 'SPRING 2014') OR email = 'desmond@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'malcolm@example.com'),
+  line_name = COALESCE(line_name, 'STONE KOLD'),
+  location = COALESCE(location, 'Englewood, NJ'),
+  industry = COALESCE(industry, 'Acting/Entertainment')
+WHERE (full_name = 'Malcolm Carter' AND line_label = 'SPRING 2014') OR email = 'malcolm@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'william@example.com'),
+  line_name = COALESCE(line_name, 'FOUR LOKO'),
+  location = COALESCE(location, 'Clayton, NC'),
+  industry = COALESCE(industry, 'Finance/Investment Banking')
+WHERE (full_name = 'William Clayton III' AND line_label = 'SPRING 2014') OR email = 'william@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'william.h@example.com'),
+  line_name = COALESCE(line_name, 'MADE IN FULL'),
+  location = COALESCE(location, 'Denver, CO'),
+  industry = COALESCE(industry, 'Consulting')
+WHERE (full_name = 'William Harris' AND line_label = 'SPRING 2014') OR email = 'william.h@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'vernon@example.com'),
+  line_name = COALESCE(line_name, 'CRENSHAW K.I.N.G.'),
+  location = COALESCE(location, 'Los Angeles, CA'),
+  industry = COALESCE(industry, 'Grooming/Entrepreneurship')
+WHERE (full_name = 'Vernon Yancy' AND line_label = 'SPRING 2014') OR email = 'vernon@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'derhone@example.com'),
+  line_name = COALESCE(line_name, 'BONE KOLLECTOR'),
+  location = COALESCE(location, 'Baltimore, MD')
+WHERE (full_name = 'Derhone Brown Jr.' AND line_label = 'SPRING 2014') OR email = 'derhone@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'andrew@example.com'),
+  line_name = COALESCE(line_name, 'KOLLATERAL DAMAGE'),
+  location = COALESCE(location, 'Detroit, MI'),
+  industry = COALESCE(industry, 'Media/Journalism')
+WHERE (full_name = 'Andrew Melton' AND line_label = 'SPRING 2014') OR email = 'andrew@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'dominick@example.com'),
+  line_name = COALESCE(line_name, 'PABLO ESKOBAR'),
+  location = COALESCE(location, 'Los Angeles, CA'),
+  industry = COALESCE(industry, 'Sports Management/Modeling')
+WHERE (full_name = 'Dominick Lewis' AND line_label = 'SPRING 2014') OR full_name = 'Dominick Lewis (HK)' OR email = 'dominick@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'kyle@example.com'),
+  line_name = COALESCE(line_name, 'BLITZKRIEG'),
+  location = COALESCE(location, 'Chicago, IL'),
+  industry = COALESCE(industry, 'Real Estate')
+WHERE (full_name = 'Kyle Nichols' AND line_label = 'SPRING 2014') OR email = 'kyle@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'devin@example.com'),
+  line_name = COALESCE(line_name, 'KAPTAIN AMERIKA'),
+  location = COALESCE(location, 'Philadelphia, PA'),
+  industry = COALESCE(industry, 'Music/DJing')
+WHERE (full_name = 'Devin Merritt' AND line_label = 'SPRING 2014') OR email = 'devin@example.com';
+
+UPDATE public.alumni SET
+  email = COALESCE(email, 'jordan.b@example.com'),
+  line_name = COALESCE(line_name, 'STATE PROPERTY'),
+  location = COALESCE(location, 'Philadelphia, PA'),
+  industry = COALESCE(industry, 'Music Management/Marketing')
+WHERE (full_name = 'Jordan Bailey' AND line_label = 'SPRING 2014') OR email = 'jordan.b@example.com';

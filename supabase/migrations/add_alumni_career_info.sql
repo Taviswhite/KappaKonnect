@@ -262,7 +262,7 @@ UPDATE public.alumni SET
   chapter = 'Xi (Howard University)',
   line_order = 9,
   graduation_year = 2026
-WHERE full_name LIKE 'Khimarhi Testamark%' OR full_name = 'Khimarhi Testamark';
+WHERE full_name LIKE 'Kimahri Testamrk%' OR full_name = 'Kimahri Testamrk';
 
 UPDATE public.alumni SET
   industry = 'Athletics',

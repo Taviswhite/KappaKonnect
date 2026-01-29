@@ -37,7 +37,7 @@ Reference for line order and line names. **Do not change any names or emails** w
 | 6 | Ahmad Edwards | APOKALYPSE (legacy) | ahmad@example.com |
 | 7 | Gregory Allen Jr. | DIAMOND B.A.C.K. | gregory@example.com |
 | 8 | Joseph Serra | G.l. J.O.E.(4.0) | joseph@example.com |
-| 9 | Khimarhi Testamark | Q.U.I.C.K.S.A.N.D. | khimarhi@example.com |
+| 9 | Kimahri Testamrk | Q.U.I.C.K.S.A.N.D. | khimarhi@example.com |
 | 10 | Keith Henderson Jr. | WEAPON X | keith@example.com |
 | 11 | Joshua Carter | THE ALKHEMIST | joshua@example.com |
 | 12 | Chase Knox | LOTTERY PICK | chase@example.com |

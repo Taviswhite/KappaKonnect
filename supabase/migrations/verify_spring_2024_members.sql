@@ -3,7 +3,7 @@
 
 -- Expected Spring 2024 members (from seed script comment):
 -- bryce.perkins, ahmod.edwards, brian.singleton, kobe.denmarkgarnett, skylar.peterkin,
--- ahmad.edwards, gregory.allen, joseph.serra, khimarhi.testamark, keith.henderson,
+-- ahmad.edwards, gregory.allen, joseph.serra, kimahri.testamrk, keith.henderson,
 -- joshua.carter, chase.knox, daniel.miller, brice.facey, marshall.williams,
 -- brandon.mccaskill, mory.diakite, jordan.newsome
 
@@ -29,7 +29,7 @@ FROM (
     ('Ahmad Edwards', 'ahmad@example.com'),
     ('Gregory Allen Jr.', 'gregory@example.com'),
     ('Joseph Serra', 'joseph@example.com'),
-    ('Khimarhi Testamark', 'khimarhi@example.com'),
+    ('Kimahri Testamrk', 'kimahri@example.com'),
     ('Keith Henderson Jr.', 'keith@example.com'),
     ('Joshua Carter', 'joshua@example.com'),
     ('Chase Knox', 'chase@example.com'),

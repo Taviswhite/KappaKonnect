@@ -191,7 +191,7 @@ END $$;
 --   2025 Line: mael.blunt, malachi.macmillan, amir.stevenson, don.jordan, dylan.darling,
 --              jared.baker, carsen.manuel, kaden.cobb
 --   2024 Line: bryce.perkins, ahmod.newton, brian.singleton, kobe.denmarkgarnett, skylar.peterkin,
---              ahmad.edwards, gregory.allen, joseph.serra, khimarhi.testamark, keith.henderson,
+--              ahmad.edwards, gregory.allen, joseph.serra, kimahri.testamrk, keith.henderson,
 --              joshua.carter, chase.knox, daniel.miller, brice.facey, marshall.williams,
 --              brandon.mccaskill, mory.diakite, jordan.newsome
 
@@ -344,7 +344,7 @@ BEGIN
 
   PERFORM create_demo_profile(
     'khimarhi@example.com',
-    'Khimarhi Testamark',
+    'Kimahri Testamrk',
     '+15555550021',
     2025,
     NULL,
@@ -541,12 +541,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- Khimarhi Testamark (2025 Alumni)
+  -- Kimahri Testamrk (2025 Alumni)
   SELECT id INTO alumni_user_id FROM auth.users WHERE email = 'khimarhi@example.com' LIMIT 1;
   IF alumni_user_id IS NOT NULL THEN
     IF EXISTS (SELECT 1 FROM public.alumni WHERE user_id = alumni_user_id) THEN
       UPDATE public.alumni SET
-        full_name = 'Khimarhi Testamark',
+        full_name = 'Kimahri Testamrk',
         email = 'khimarhi@example.com',
         graduation_year = 2025,
         current_position = 'Software Engineer',
@@ -554,7 +554,7 @@ BEGIN
       WHERE user_id = alumni_user_id;
     ELSE
       INSERT INTO public.alumni (user_id, full_name, email, graduation_year, current_position, location)
-      VALUES (alumni_user_id, 'Khimarhi Testamark', 'khimarhi@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
+      VALUES (alumni_user_id, 'Kimahri Testamrk', 'khimarhi@example.com', 2025, 'Software Engineer', 'Atlanta, GA');
     END IF;
   END IF;
 

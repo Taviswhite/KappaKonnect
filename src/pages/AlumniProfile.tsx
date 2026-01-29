@@ -254,11 +254,6 @@ export default function AlumniProfile() {
                       <h2 className="text-2xl sm:text-3xl font-display font-bold">
                         {alum.full_name}
                       </h2>
-                      {alum.current_position && alum.current_company && (
-                        <p className="text-base text-muted-foreground mt-1">
-                          {alum.current_position} at {alum.current_company}
-                        </p>
-                      )}
                     </div>
                     <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                       {crossingDisplay && (
@@ -277,11 +272,6 @@ export default function AlumniProfile() {
                           Class of {alum.crossing_year + 1}
                         </Badge>
                       ) : null}
-                      {alum.industry && (
-                        <Badge className="bg-primary/10 text-primary border-primary/30 text-sm">
-                          {alum.industry}
-                        </Badge>
-                      )}
                       {alum.is_featured && (
                         <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 text-sm">
                           <Star className="w-3 h-3 mr-1" fill="currentColor" />
@@ -289,6 +279,20 @@ export default function AlumniProfile() {
                         </Badge>
                       )}
                     </div>
+                    {(alum.current_position || alum.current_company || alum.industry) && (
+                      <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                        {alum.current_position && alum.current_company && (
+                          <Badge variant="outline" className="text-sm bg-primary/20 text-primary border-primary/30">
+                            {alum.current_position} at {alum.current_company}
+                          </Badge>
+                        )}
+                        {alum.industry && (
+                          <Badge variant="outline" className="text-sm bg-primary/20 text-primary border-primary/30">
+                            {alum.industry}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                     {/* Quick actions */}
                     <div className="flex flex-wrap justify-center sm:justify-start gap-2 pt-2">
                       {alum.email && (

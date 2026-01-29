@@ -49,6 +49,17 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
     throw error;
   }
 
+  // Skip "Do Not Exist" / DNE placeholders so they never show; numbering stays correct (e.g. Spring 2016 skip 3)
+  const isDnePlaceholder = (a: { full_name?: string | null; email?: string | null }): boolean => {
+    const name = a.full_name;
+    if (name && String(name).trim()) {
+      const n = String(name).toLowerCase().trim();
+      if (n === "dne" || n.includes("do not exist") || n.includes("does not exist")) return true;
+    }
+    return a.email?.toLowerCase().trim() === "doesnotexist@example.com";
+  };
+  const rows = (data || []).filter((a) => !isDnePlaceholder(a));
+
   const seenById = new Set<string>();
   const seenByEmail = new Set<string>();
   const seenByName = new Map<string, number>();
@@ -74,7 +85,7 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
 
   const list: AlumniRecord[] = [];
 
-  for (const alum of (data || []) as AlumniRecord[]) {
+  for (const alum of rows as AlumniRecord[]) {
     const id = alum.id;
     const email = alum.email?.toLowerCase().trim() || null;
     const normalizedName = normalizeName(alum.full_name);
@@ -114,18 +125,18 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
       }
     }
 
+    // Only merge by name when same person (same email). Different lines = different people.
     if (firstLast && firstLast.length > 3) {
       const existingIdx = seenByName.get(firstLast);
       if (existingIdx !== undefined) {
         const existing = list[existingIdx];
-        if (
+        const sameEmail =
           existing.email &&
           alum.email &&
-          existing.email.toLowerCase().trim() !==
-            alum.email.toLowerCase().trim()
-        ) {
-          // different emails, treat separately
-        } else {
+          existing.email.toLowerCase().trim() === alum.email.toLowerCase().trim();
+        const bothNoEmail = !existing.email?.trim() && !alum.email?.trim();
+        // Merge only when same email (same person). Never merge two no-email records by name alone (could be different lines).
+        if (sameEmail) {
           const existingScore = [
             existing.email,
             existing.industry,
@@ -149,6 +160,9 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
             list[existingIdx] = alum;
           }
           continue;
+        }
+        if (bothNoEmail) {
+          // Different people (e.g. same name from different lines) — don't merge, fall through to push
         }
       }
     }
@@ -200,9 +214,13 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
     };
   });
 
-  const finalSeen = new Set<string>();
-  const finalList: AlumniRecord[] = [];
-
+  // Dedupe by (line_label, line_order, full_name) so we show one person per line position (no duplicate names in same line)
+  const toShortLineLabel = (label: string | null | undefined): string => {
+    if (!label || !String(label).trim()) return "";
+    const s = String(label).trim();
+    const match = s.match(/^(SPRING|FALL|Spring|Fall)\s+(\d{4})/i);
+    return match ? `${match[1].toUpperCase()} ${match[2]}` : s;
+  };
   const normalizeNameFinal = (name: string | null | undefined): string => {
     if (!name) return "";
     return name
@@ -214,18 +232,26 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
       .replace(/[^\w\s]/g, "")
       .trim();
   };
+  const linePositionKey = (a: AlumniRecord): string => {
+    const label = toShortLineLabel(a.line_label);
+    const order = a.line_order ?? 0;
+    const name = normalizeNameFinal(a.full_name);
+    return `${label || "OTHER"}-${order}-${name}`;
+  };
+  const careerScore = (a: AlumniRecord): number =>
+    [a.email, a.industry, a.current_company, a.current_position, a.location, a.linkedin_url, a.avatar_url].filter(
+      (x) => x != null && String(x).trim() !== "",
+    ).length;
 
+  const byLinePosition = new Map<string, AlumniRecord>();
   for (const alum of enriched) {
-    const emailKey = alum.email?.toLowerCase().trim();
-    const nameKey = normalizeNameFinal(alum.full_name);
-    const key = emailKey || `${nameKey}-${alum.id}`;
-
-    if (!finalSeen.has(key)) {
-      finalSeen.add(key);
-      finalList.push(alum);
+    const key = linePositionKey(alum);
+    const existing = byLinePosition.get(key);
+    if (!existing || careerScore(alum) > careerScore(existing)) {
+      byLinePosition.set(key, alum);
     }
   }
 
-  return finalList;
+  return Array.from(byLinePosition.values());
 }
 
