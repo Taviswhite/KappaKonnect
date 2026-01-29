@@ -293,6 +293,12 @@ export default function AlumniProfile() {
                         )}
                       </div>
                     )}
+                    {alum.location && (
+                      <p className="flex items-center justify-center sm:justify-start gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4 shrink-0" />
+                        {alum.location}
+                      </p>
+                    )}
                     {/* Quick actions */}
                     <div className="flex flex-wrap justify-center sm:justify-start gap-2 pt-2">
                       {alum.email && (

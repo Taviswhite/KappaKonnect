@@ -28,6 +28,7 @@ export type Database = {
           graduation_year: number
           id: string
           industry: string | null
+          is_featured: boolean | null
           linkedin_url: string | null
           line_label: string | null
           line_order: number | null
@@ -46,6 +47,7 @@ export type Database = {
           graduation_year: number
           id?: string
           industry?: string | null
+          is_featured?: boolean | null
           linkedin_url?: string | null
           line_label?: string | null
           location?: string | null
@@ -63,6 +65,7 @@ export type Database = {
           graduation_year?: number
           id?: string
           industry?: string | null
+          is_featured?: boolean | null
           linkedin_url?: string | null
           line_label?: string | null
           location?: string | null
