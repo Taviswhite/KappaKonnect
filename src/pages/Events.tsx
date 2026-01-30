@@ -86,7 +86,7 @@ const Events = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">Events</h1>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Events</h1>
             <p className="text-muted-foreground mt-1">Manage and track chapter events</p>
           </div>
           <div className="flex items-center gap-3">

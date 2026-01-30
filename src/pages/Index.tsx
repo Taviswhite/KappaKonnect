@@ -221,7 +221,7 @@ const Index = () => {
                           </div>
                           <div className="min-w-0 text-left">
                             <p className="font-semibold text-foreground text-sm sm:text-base truncate">Send Announcement</p>
-                            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                               Notify all members
                             </p>
                           </div>

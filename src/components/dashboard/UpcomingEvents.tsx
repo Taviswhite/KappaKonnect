@@ -16,6 +16,76 @@ const typeColors: Record<string, string> = {
   executive: "bg-purple-500/20 text-purple-400 border-purple-500/30",
 };
 
+type EventRow = { id: string; title?: string | null; start_time: string; event_type?: string | null; location?: string | null };
+
+function ClosestEventCard({
+  event,
+  typeColors: colors,
+  onViewAll,
+}: {
+  event: EventRow;
+  typeColors: Record<string, string>;
+  onViewAll: () => void;
+}) {
+  const eventDate = new Date(event.start_time);
+  const eventType = (event.event_type || "meeting") as keyof typeof typeColors;
+  return (
+    <div
+      onClick={onViewAll}
+      className={cn(
+        "flex items-start sm:items-center gap-3 p-3 sm:p-4 rounded-xl transition-all duration-150 cursor-pointer group card-press",
+        "bg-primary/5 border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.12)]"
+      )}
+    >
+      <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 bg-primary/15 border border-primary/20">
+        <span className="text-xs font-medium uppercase text-muted-foreground leading-tight">
+          {format(eventDate, "MMM")}
+        </span>
+        <span className="text-base font-bold leading-tight -mt-0.5 text-primary">
+          {format(eventDate, "d")}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-0.5">
+          <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
+            {event.title}
+          </h3>
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-xs capitalize w-fit",
+              colors[eventType] || colors.meeting
+            )}
+          >
+            {eventType}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" strokeWidth={2} />
+            {format(eventDate, "h:mm a")}
+          </span>
+          {event.location && (
+            <span className="flex items-center gap-1 truncate max-w-[140px] sm:max-w-none">
+              <MapPin className="w-3 h-3 shrink-0" strokeWidth={2} />
+              <span className="truncate">{event.location}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0"
+      >
+        RSVP
+      </Button>
+    </div>
+  );
+}
+
 export function UpcomingEvents() {
   const navigate = useNavigate();
   // Start with no date filter so users see upcoming events immediately.
@@ -43,6 +113,16 @@ export function UpcomingEvents() {
       ),
     [events]
   );
+
+  const filteredByDate = useMemo(
+    () =>
+      selectedDate
+        ? events.filter((e) =>
+            isSameDay(new Date(e.start_time), selectedDate)
+          )
+        : events
+  );
+  const closestEvent = filteredByDate[0] ?? null;
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover">
@@ -78,7 +158,7 @@ export function UpcomingEvents() {
           <div className="icon-container icon-container-muted mb-3">
             <CalendarIcon className="w-6 h-6" strokeWidth={2} />
           </div>
-          <p className="font-semibold text-foreground">No upcoming events</p>
+          <p className="font-semibold text-foreground text-sm">No upcoming events</p>
           <p className="text-xs text-muted-foreground mt-1">
             Events will appear here once created
           </p>
@@ -94,95 +174,17 @@ export function UpcomingEvents() {
           </div>
 
           <div className="space-y-3">
-            {events
-              .filter((event) =>
-                selectedDate
-                  ? isSameDay(new Date(event.start_time), selectedDate)
-                  : true
-              )
-              .map((event, index) => {
-            const eventDate = new Date(event.start_time);
-            const eventType = (event.event_type || "meeting") as keyof typeof typeColors;
-            const isNext = index === 0;
-
-            return (
-              <div
-                  key={event.id}
-                  onClick={() => navigate("/events")}
-                  className={cn(
-                    "flex items-start sm:items-center gap-3 p-3 sm:p-4 rounded-xl transition-all duration-150 cursor-pointer group",
-                    "card-press",
-                    isNext
-                      ? "bg-primary/5 border border-primary/20 shadow-[0_0_20px_hsl(var(--primary)/0.12)]"
-                      : "bg-muted/30 hover:bg-muted/50 opacity-90 hover:opacity-100"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0",
-                      isNext ? "bg-primary/15 border border-primary/20" : "bg-muted"
-                    )}
-                  >
-                    <span className="text-[10px] font-medium uppercase text-muted-foreground leading-tight">
-                      {format(eventDate, "MMM")}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-base font-bold leading-tight -mt-0.5",
-                        isNext ? "text-primary" : "text-muted-foreground"
-                      )}
-                    >
-                      {format(eventDate, "d")}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-0.5">
-                      <h3 className="font-semibold text-sm sm:text-base text-foreground truncate">
-                        {event.title}
-                      </h3>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] capitalize w-fit",
-                          typeColors[eventType] || typeColors.meeting
-                        )}
-                      >
-                        {eventType}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" strokeWidth={2} />
-                        {format(eventDate, "h:mm a")}
-                      </span>
-                      {event.location && (
-                        <span className="flex items-center gap-1 truncate max-w-[140px] sm:max-w-none">
-                          <MapPin className="w-3 h-3 shrink-0" strokeWidth={2} />
-                          <span className="truncate">{event.location}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0"
-                  >
-                    RSVP
-                  </Button>
-                </div>
-              );
-          })}
-            {selectedDate &&
-              !events.some((event) =>
-                isSameDay(new Date(event.start_time), selectedDate)
-              ) && (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No events on this day. Try another date or view all events.
-                </p>
-              )}
+            {closestEvent ? (
+              <ClosestEventCard
+                event={closestEvent}
+                typeColors={typeColors}
+                onViewAll={() => navigate("/events")}
+              />
+            ) : selectedDate ? (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No events on this day. Try another date or view all events.
+              </p>
+            ) : null}
           </div>
         </div>
       )}

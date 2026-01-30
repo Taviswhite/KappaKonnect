@@ -213,11 +213,11 @@ export function LeadershipCard() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 flex flex-col items-center text-center">
-                    <p className="font-semibold text-[11px] leading-tight text-foreground truncate w-full">
+                    <p className="font-semibold text-xs leading-tight text-foreground truncate w-full">
                       {member.full_name}
                     </p>
                     {member.position && (
-                      <p className="text-[11px] text-muted-foreground truncate w-full">
+                      <p className="text-xs text-muted-foreground truncate w-full">
                         {member.position}
                       </p>
                     )}
@@ -251,10 +251,10 @@ export function LeadershipCard() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 flex flex-col items-center text-center">
-                    <p className="font-semibold text-[11px] leading-tight text-foreground truncate w-full">
+                    <p className="font-semibold text-xs leading-tight text-foreground truncate w-full">
                       {alum.full_name}
                     </p>
-                    <p className="text-[10px] leading-tight text-muted-foreground truncate w-full">
+                    <p className="text-xs leading-tight text-muted-foreground truncate w-full">
                       {alum.industry || "Chapter Advisor"}
                     </p>
                   </div>

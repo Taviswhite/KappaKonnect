@@ -122,7 +122,7 @@ export function TaskList() {
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] capitalize",
+                      "text-xs capitalize",
                       priorityColors[priority] || priorityColors.medium
                     )}
                   >

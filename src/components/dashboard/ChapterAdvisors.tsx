@@ -44,7 +44,7 @@ function AdvisorCard({
     >
       <Avatar className="w-10 h-10 border border-primary shrink-0">
         <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-        <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-display">
           {alum.full_name?.split(" ").map((n) => n[0]).join("") || "A"}
         </AvatarFallback>
       </Avatar>
@@ -52,7 +52,7 @@ function AdvisorCard({
         <p className="font-semibold text-xs text-foreground truncate w-full">
           {alum.full_name}
         </p>
-        <p className="text-[11px] text-muted-foreground truncate w-full">
+        <p className="text-xs text-muted-foreground truncate w-full">
           {alum.industry || "Chapter Advisor"}
         </p>
       </div>
@@ -115,14 +115,14 @@ export function ChapterAdvisors() {
   return (
     <div className="glass-card rounded-xl px-2 py-2.5 sm:px-2 sm:py-3 animate-fade-in card-hover min-w-0 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base sm:text-lg font-display font-bold text-foreground">
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           Chapter Advisors
         </h2>
         {advisors.length > 0 && (
           <Button
             variant="ghost"
             size="sm"
-            className="text-[11px] text-muted-foreground h-7 px-2 gap-1"
+            className="text-xs text-muted-foreground h-7 px-2 gap-1"
             onClick={() => setExpanded((e) => !e)}
           >
             {expanded ? (

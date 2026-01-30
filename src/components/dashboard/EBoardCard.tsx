@@ -56,7 +56,7 @@ function MemberCard({
     >
       <Avatar className="w-10 h-10 border border-primary shrink-0">
         <AvatarImage src={member.avatar_url || undefined} />
-        <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
+        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-display">
           {member.full_name?.split(" ").map((n) => n[0]).join("") || "E"}
         </AvatarFallback>
       </Avatar>
@@ -65,7 +65,7 @@ function MemberCard({
           {member.full_name}
         </p>
         {member.position && (
-          <p className="text-[11px] text-muted-foreground truncate w-full">
+          <p className="text-xs text-muted-foreground truncate w-full">
             {member.position}
           </p>
         )}
@@ -154,7 +154,7 @@ export function EBoardCard() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-[11px] text-muted-foreground h-7 px-2 gap-1"
+            className="text-xs text-muted-foreground h-7 px-2 gap-1"
             onClick={() => setExpanded((e) => !e)}
           >
             {expanded ? (

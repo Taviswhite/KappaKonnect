@@ -20,7 +20,7 @@ const Payments = () => {
             <div className="icon-container icon-container-primary mb-4">
               <CreditCard className="w-8 h-8" strokeWidth={2} />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
+            <h2 className="text-xl font-display font-bold text-foreground mb-2">
               Payments Coming Soon
             </h2>
             <p className="text-sm text-muted-foreground max-w-md">

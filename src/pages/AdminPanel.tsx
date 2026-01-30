@@ -269,7 +269,7 @@ const AdminPanel = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground flex items-center gap-2">
               <Shield className="w-8 h-8 text-primary" />
               Admin Panel
             </h1>

@@ -105,16 +105,16 @@ export function FeaturedAlumni() {
                   {row.full_name}
                 </span>
                 {crossing && (
-                  <Badge variant="outline" className="text-[10px] font-medium bg-muted/50">
+                  <Badge variant="outline" className="text-xs font-medium bg-muted/50">
                     {crossing}
                   </Badge>
                 )}
                 {row.industry ? (
-                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                  <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                     {row.industry}
                   </Badge>
                 ) : (
-                  <span className="text-[10px] text-muted-foreground">Featured</span>
+                  <span className="text-xs text-muted-foreground">Featured</span>
                 )}
               </button>
             );

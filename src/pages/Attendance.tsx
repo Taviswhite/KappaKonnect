@@ -139,7 +139,7 @@ const Attendance = () => {
       <AppLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
+            <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Attendance</h1>
             <p className="text-muted-foreground mt-1">QR code check-in for events</p>
           </div>
           <div className="glass-card rounded-xl p-12 text-center">
@@ -156,7 +156,7 @@ const Attendance = () => {
     <AppLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Attendance</h1>
           <p className="text-muted-foreground mt-1">Check in to upcoming events</p>
         </div>
 

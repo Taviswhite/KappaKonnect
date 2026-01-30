@@ -73,7 +73,7 @@ export function BottomNav() {
               )}
             >
               <item.icon className={cn("w-5 h-5 shrink-0", isActive && "text-primary")} />
-              <span className="text-[10px] font-medium truncate max-w-full px-0.5">{item.label}</span>
+              <span className="text-xs font-medium truncate max-w-full px-0.5">{item.label}</span>
             </Link>
           );
         })}
@@ -90,7 +90,7 @@ export function BottomNav() {
               )}
             >
               <MoreHorizontal className="w-5 h-5 shrink-0" />
-              <span className="text-[10px] font-medium">More</span>
+              <span className="text-xs font-medium">More</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="center" className="mb-2 w-56">

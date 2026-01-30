@@ -50,7 +50,7 @@ export function NextEventCard() {
           )}
         >
           <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 bg-primary/15 border border-primary/20">
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">
+            <span className="text-xs font-medium uppercase text-muted-foreground">
               {format(new Date(event.start_time), "MMM")}
             </span>
             <span className="text-base font-bold text-primary -mt-0.5">
