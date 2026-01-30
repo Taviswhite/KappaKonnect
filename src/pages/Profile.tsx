@@ -290,7 +290,7 @@ export default function Profile() {
                       onChange={(e) =>
                         setProfileData((p) => ({ ...p, chapter: e.target.value }))
                       }
-                      placeholder="e.g., Alpha Phi"
+                      placeholder="e.g., Xi"
                       className="bg-secondary/30"
                     />
                   </div>
