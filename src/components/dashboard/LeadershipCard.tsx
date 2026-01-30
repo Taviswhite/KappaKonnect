@@ -22,13 +22,13 @@ type EBoardMember = {
   position?: string | null;
 };
 
-// Chapter Advisor names to display
+// Chapter Advisor names to display (deference order: alphabetical by last name)
 const ADVISOR_NAMES = [
-  "Presley Nelson Jr",
-  "Demar",
-  "Innocent",
-  "Pawlos Germay",
+  "Abdullah Zaki",
   "Carnegie",
+  "Demar",
+  "Pawlos Germay",
+  "Presley Nelson Jr",
 ];
 
 // Match the intentional E-board ordering from the Members page

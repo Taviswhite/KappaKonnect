@@ -8,13 +8,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { avatarUrlForAlumni } from "@/lib/utils";
 import XScroll from "@/components/ui/x-scroll";
 
-// Chapter Advisor names to display
+// Chapter Advisor names to display (deference order: alphabetical by last name)
 const ADVISOR_NAMES = [
-  "Presley Nelson Jr",
+  "Abdullah Zaki",
+  "Carnegie",
   "Demar",
-  "Innocent",
   "Pawlos Germay",
-  "Carnegie"
+  "Presley Nelson Jr",
 ];
 
 type AdvisorAlumni = {
