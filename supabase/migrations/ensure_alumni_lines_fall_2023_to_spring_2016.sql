@@ -127,24 +127,25 @@ SELECT * FROM (VALUES
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 
--- SPRING 2009
+-- SPRING 2009 - 16 Sons of the Diamond H.E.I.S.T. (Alix Martin at 4, Robert Spears at 5)
 INSERT INTO public.alumni (full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 SELECT * FROM (VALUES
   ('Donald Tyson', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 1),
   ('Deric Canty', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 2),
   ('Calvin Simmons Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 3),
-  ('Robert Spears', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 4),
-  ('Jason Cole', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 5),
-  ('Maurice Cheeks', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 6),
-  ('Jeremy Williams', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 7),
-  ('Victor Medina', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 8),
-  ('Rodney Hawkins Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 9),
-  ('Alvin Staley Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 10),
-  ('Jarred McKee', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 11),
-  ('Brandon Montgomery', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 12),
-  ('Darrelle Washington', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 13),
-  ('Khalil Bus-Kwofe', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 14),
-  ('Kyle Smith', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 15)
+  ('Alix Martin', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 4),
+  ('Robert Spears', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 5),
+  ('Jason Cole', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 6),
+  ('Maurice Cheeks', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 7),
+  ('Jeremy Williams', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 8),
+  ('Victor Medina', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 9),
+  ('Rodney Hawkins Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 10),
+  ('Alvin Staley Jr.', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 11),
+  ('Jarred McKee', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 12),
+  ('Brandon Montgomery', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 13),
+  ('Darrelle Washington', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 14),
+  ('Khalil Bus-Kwofe', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 15),
+  ('Kyle Smith', 2012, 'SPRING 2009', 2009, 'Xi (Howard University)', 16)
 ) AS v(full_name, graduation_year, line_label, crossing_year, chapter, line_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.alumni a WHERE a.line_label = v.line_label AND a.line_order = v.line_order AND a.full_name = v.full_name);
 

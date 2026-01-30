@@ -24,7 +24,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
     CREATE TYPE public.app_role AS ENUM (
       'admin',
-      'officer',
+      'e_board',
       'committee_chairman',
       'member',
       'alumni'
@@ -257,17 +257,20 @@ $$;
 -- TRIGGERS
 -- ============================================
 
--- Update timestamps
-CREATE TRIGGER update_profiles_updated_at 
-    BEFORE UPDATE ON public.profiles 
+-- Update timestamps (idempotent: drop first so re-runs don't fail)
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
+    BEFORE UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_events_updated_at 
-    BEFORE UPDATE ON public.events 
+DROP TRIGGER IF EXISTS update_events_updated_at ON public.events;
+CREATE TRIGGER update_events_updated_at
+    BEFORE UPDATE ON public.events
     FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER update_tasks_updated_at 
-    BEFORE UPDATE ON public.tasks 
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON public.tasks;
+CREATE TRIGGER update_tasks_updated_at
+    BEFORE UPDATE ON public.tasks
     FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Handle new user signup
@@ -333,22 +336,24 @@ CREATE POLICY "Members can view events"
     USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Officers and admins can create events" ON public.events;
-CREATE POLICY "Officers and admins can create events"
+DROP POLICY IF EXISTS "E-Board and admins can create events" ON public.events;
+CREATE POLICY "E-Board and admins can create events"
     ON public.events FOR INSERT
     TO authenticated
     WITH CHECK (
         public.has_role(auth.uid(), 'admin'::public.app_role) 
-        OR public.has_role(auth.uid(), 'officer'::public.app_role) 
+        OR public.has_role(auth.uid(), 'e_board'::public.app_role) 
         OR public.has_role(auth.uid(), 'committee_chairman'::public.app_role)
     );
 
 DROP POLICY IF EXISTS "Officers and admins can update events" ON public.events;
-CREATE POLICY "Officers and admins can update events"
+DROP POLICY IF EXISTS "E-Board and admins can update events" ON public.events;
+CREATE POLICY "E-Board and admins can update events"
     ON public.events FOR UPDATE
     TO authenticated
     USING (
         public.has_role(auth.uid(), 'admin'::public.app_role) 
-        OR public.has_role(auth.uid(), 'officer'::public.app_role) 
+        OR public.has_role(auth.uid(), 'e_board'::public.app_role) 
         OR created_by = auth.uid()
     );
 
@@ -394,11 +399,12 @@ CREATE POLICY "Users can check themselves in"
     WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Admins and officers can manage attendance" ON public.attendance;
-CREATE POLICY "Admins and officers can manage attendance"
+DROP POLICY IF EXISTS "Admins and E-Board can manage attendance" ON public.attendance;
+CREATE POLICY "Admins and E-Board can manage attendance"
     ON public.attendance FOR ALL
     USING (
         public.has_role(auth.uid(), 'admin'::public.app_role) 
-        OR public.has_role(auth.uid(), 'officer'::public.app_role)
+        OR public.has_role(auth.uid(), 'e_board'::public.app_role)
     );
 
 -- ============================================
@@ -431,11 +437,12 @@ CREATE POLICY "Authenticated users can view channels"
     USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Officers and admins can create channels" ON public.channels;
-CREATE POLICY "Officers and admins can create channels"
+DROP POLICY IF EXISTS "E-Board and admins can create channels" ON public.channels;
+CREATE POLICY "E-Board and admins can create channels"
     ON public.channels FOR INSERT
     WITH CHECK (
         public.has_role(auth.uid(), 'admin'::public.app_role) 
-        OR public.has_role(auth.uid(), 'officer'::public.app_role)
+        OR public.has_role(auth.uid(), 'e_board'::public.app_role)
     );
 
 -- ============================================
@@ -463,6 +470,7 @@ CREATE POLICY "Authenticated users can view documents"
     USING (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Officers and admins can create documents" ON public.documents;
+DROP POLICY IF EXISTS "E-Board and admins can create documents" ON public.documents;
 CREATE POLICY "Authenticated users can create documents"
     ON public.documents FOR INSERT
     TO authenticated

@@ -1,4 +1,4 @@
--- Restrict task assignment to only officers, admins, and committee chairmen
+-- Restrict task assignment to only E-Board, admins, and committee chairmen
 -- This trigger ensures that only authorized users can set assigned_to when creating/updating tasks
 
 CREATE OR REPLACE FUNCTION public.check_task_assignment_permission()
@@ -10,14 +10,14 @@ AS $$
 BEGIN
   -- If assigned_to is being set (not null), check if user has permission
   IF NEW.assigned_to IS NOT NULL THEN
-    -- Check if user is admin, officer, or committee_chairman
+    -- Check if user is admin, e_board, or committee_chairman
     IF NOT (
       public.has_role(auth.uid(), 'admin'::public.app_role) OR
-      public.has_role(auth.uid(), 'officer'::public.app_role) OR
+      public.has_role(auth.uid(), 'e_board'::public.app_role) OR
       public.has_role(auth.uid(), 'committee_chairman'::public.app_role)
     ) THEN
       -- User doesn't have permission to assign tasks
-      RAISE EXCEPTION 'Only officers, admins, and committee chairmen can assign tasks to members';
+      RAISE EXCEPTION 'Only E-Board, admins, and committee chairmen can assign tasks to members';
     END IF;
   END IF;
   

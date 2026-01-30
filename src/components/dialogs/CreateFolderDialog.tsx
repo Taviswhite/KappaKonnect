@@ -52,7 +52,12 @@ export function CreateFolderDialog({ children }: CreateFolderDialogProps) {
 
       if (error) {
         console.error("Error creating folder:", error);
-        throw error;
+        if (error.code === "42501") {
+          toast.error("You don't have permission to create folders. Ensure you're logged in and that migrations have been applied (supabase db push).");
+        } else {
+          toast.error(error.message || "Failed to create folder. Please try again.");
+        }
+        return;
       }
 
       toast.success(`Folder "${data.name}" created successfully!`);

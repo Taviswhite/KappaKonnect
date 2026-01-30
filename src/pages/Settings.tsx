@@ -42,6 +42,11 @@ import {
   updateDashboardPreferences,
 } from "@/lib/dashboard-preferences";
 
+const USER_PREFS_KEY_PREFIX = "kc_user_prefs_";
+const USER_NOTIFICATIONS_KEY_PREFIX = "kc_user_notifications_";
+const USER_PRIVACY_KEY_PREFIX = "kc_user_privacy_";
+const USER_SECURITY_KEY_PREFIX = "kc_user_security_";
+
 export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -96,10 +101,56 @@ export default function Settings() {
     setDashboardOrder(getDashboardOrder(user?.id));
   }, [user?.id]);
 
+  // Load saved user preferences (non-dashboard) from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.id) return;
+
+    try {
+      const baseKey = `${USER_PREFS_KEY_PREFIX}${user.id}`;
+      const prefsRaw = window.localStorage.getItem(baseKey);
+      if (prefsRaw) {
+        const parsed = JSON.parse(prefsRaw) as Partial<typeof preferences>;
+        setPreferences((prev) => ({ ...prev, ...parsed }));
+      }
+
+      const notificationsRaw = window.localStorage.getItem(
+        `${USER_NOTIFICATIONS_KEY_PREFIX}${user.id}`,
+      );
+      if (notificationsRaw) {
+        const parsed = JSON.parse(notificationsRaw) as Partial<typeof notifications>;
+        setNotifications((prev) => ({ ...prev, ...parsed }));
+      }
+
+      const privacyRaw = window.localStorage.getItem(
+        `${USER_PRIVACY_KEY_PREFIX}${user.id}`,
+      );
+      if (privacyRaw) {
+        const parsed = JSON.parse(privacyRaw) as Partial<typeof privacy>;
+        setPrivacy((prev) => ({ ...prev, ...parsed }));
+      }
+
+      const securityRaw = window.localStorage.getItem(
+        `${USER_SECURITY_KEY_PREFIX}${user.id}`,
+      );
+      if (securityRaw) {
+        const parsed = JSON.parse(securityRaw) as Partial<typeof security>;
+        setSecurity((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {
+      // If anything goes wrong reading stored preferences, fall back to defaults
+    }
+  }, [user?.id]);
+
   const handleSavePreferences = () => {
     // Update theme immediately when changed
     if (preferences.theme && setTheme) {
       setTheme(preferences.theme);
+    }
+    if (typeof window !== "undefined" && user?.id) {
+      window.localStorage.setItem(
+        `${USER_PREFS_KEY_PREFIX}${user.id}`,
+        JSON.stringify(preferences),
+      );
     }
     toast({
       title: "Preferences Updated",
@@ -108,6 +159,12 @@ export default function Settings() {
   };
 
   const handleSaveNotifications = () => {
+    if (typeof window !== "undefined" && user?.id) {
+      window.localStorage.setItem(
+        `${USER_NOTIFICATIONS_KEY_PREFIX}${user.id}`,
+        JSON.stringify(notifications),
+      );
+    }
     toast({
       title: "Notification Settings Updated",
       description: "Your notification preferences have been saved.",
@@ -115,6 +172,12 @@ export default function Settings() {
   };
 
   const handleSavePrivacy = () => {
+    if (typeof window !== "undefined" && user?.id) {
+      window.localStorage.setItem(
+        `${USER_PRIVACY_KEY_PREFIX}${user.id}`,
+        JSON.stringify(privacy),
+      );
+    }
     toast({
       title: "Privacy Settings Updated",
       description: "Your privacy settings have been saved.",
@@ -122,6 +185,12 @@ export default function Settings() {
   };
 
   const handleSaveSecurity = () => {
+    if (typeof window !== "undefined" && user?.id) {
+      window.localStorage.setItem(
+        `${USER_SECURITY_KEY_PREFIX}${user.id}`,
+        JSON.stringify(security),
+      );
+    }
     toast({
       title: "Security Settings Updated",
       description: "Your security settings have been saved.",

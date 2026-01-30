@@ -15,13 +15,11 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, Shield, X } from "lucide-react";
+import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, X } from "lucide-react";
 import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
-import { useAuth } from "@/contexts/AuthContext";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
@@ -50,10 +48,6 @@ const Members = () => {
     role: "all",
     committee: "all",
   });
-  const { hasRole } = useAuth();
-
-  // Only admins can edit roles
-  const canEditRoles = hasRole("admin");
 
   // Fetch profiles from database (exclude admin accounts)
   const { data: profiles = [], isLoading, error: profilesError } = useQuery({
@@ -375,17 +369,6 @@ const Members = () => {
                         >
                           {roleLabel}
                         </Badge>
-                        {canEditRoles && (
-                          <EditUserRoleDialog
-                            userId={member.user_id}
-                            userName={member.full_name}
-                            currentRole={role}
-                          >
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              <Shield className="w-3 h-3" />
-                            </Button>
-                          </EditUserRoleDialog>
-                        )}
                       </div>
                       {member.committee && (
                         <p className="text-sm text-muted-foreground mt-1">
@@ -432,7 +415,6 @@ const Members = () => {
                     <TableHead>Crossing</TableHead>
                     <TableHead>Committee</TableHead>
                     <TableHead>Contact</TableHead>
-                    {canEditRoles && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -480,19 +462,6 @@ const Members = () => {
                             )}
                           </div>
                         </TableCell>
-                        {canEditRoles && (
-                          <TableCell className="text-right">
-                            <EditUserRoleDialog
-                              userId={member.user_id}
-                              userName={member.full_name}
-                              currentRole={role}
-                            >
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Shield className="w-4 h-4" />
-                              </Button>
-                            </EditUserRoleDialog>
-                          </TableCell>
-                        )}
                       </TableRow>
                     );
                   })}

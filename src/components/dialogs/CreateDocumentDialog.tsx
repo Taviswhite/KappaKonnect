@@ -28,9 +28,11 @@ type DocumentFormData = z.infer<typeof documentSchema>;
 
 interface CreateDocumentDialogProps {
   children: React.ReactNode;
+  /** When provided, new document is created in this folder */
+  folderId?: string | null;
 }
 
-export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
+export function CreateDocumentDialog({ children, folderId }: CreateDocumentDialogProps) {
   const [open, setOpen] = useState(false);
   const [fileType, setFileType] = useState("PDF");
   const [visibility, setVisibility] = useState<"public" | "private" | "shared">("private");
@@ -123,6 +125,9 @@ export function CreateDocumentDialog({ children }: CreateDocumentDialogProps) {
         created_by: user.id,
         visibility: visibility,
       };
+      if (folderId) {
+        insertData.folder_id = folderId;
+      }
 
       // Add sharing fields if visibility is "shared"
       if (visibility === "shared" && sharedRoles.length > 0) {

@@ -23,14 +23,14 @@ BEGIN
   -- Only check permissions if assigned_to is being set (not null)
   -- This allows anyone to create unassigned tasks
   IF NEW.assigned_to IS NOT NULL THEN
-    -- Check if user is admin, officer, or committee_chairman
+    -- Check if user is admin, e_board, or committee_chairman
     IF NOT (
       public.has_role(auth.uid(), 'admin'::public.app_role) OR
-      public.has_role(auth.uid(), 'officer'::public.app_role) OR
+      public.has_role(auth.uid(), 'e_board'::public.app_role) OR
       public.has_role(auth.uid(), 'committee_chairman'::public.app_role)
     ) THEN
       -- User doesn't have permission to assign tasks
-      RAISE EXCEPTION 'Only officers, admins, and committee chairmen can assign tasks to members. You can create the task without assigning it.';
+      RAISE EXCEPTION 'Only E-Board, admins, and committee chairmen can assign tasks to members. You can create the task without assigning it.';
     END IF;
   END IF;
   

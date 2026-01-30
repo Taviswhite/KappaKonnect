@@ -11,7 +11,7 @@ A modern fraternity management portal built with React, TypeScript, and Supabase
 - **Document Management** - Store and organize chapter documents
 - **Real-time Chat** - Communicate with chapter members
 - **Notifications** - Stay updated with chapter activities
-- **Role-based Access** - Admin, officer, committee chair, and member roles
+- **Role-based Access** - Admin, E-Board, committee chair, and member roles
 
 ## 🛠️ Technologies
 
@@ -111,7 +111,7 @@ The app uses Supabase Authentication with email/password. Users can:
 ## 👥 User Roles
 
 - **Admin** - Full access to all features
-- **Officer** - Access to sensitive statistics and management features
+- **E-Board** - Access to sensitive statistics and management features
 - **Committee Chair** - Access to committee-specific features
 - **Member** - Standard member access
 - **Advisor** - Advisor-level access

@@ -223,6 +223,8 @@ export type Database = {
           requires_signature: boolean | null
           total_signers: number | null
           updated_at: string
+          visibility: string | null
+          shared_with_roles: string[] | null
         }
         Insert: {
           created_at?: string
@@ -236,6 +238,8 @@ export type Database = {
           requires_signature?: boolean | null
           total_signers?: number | null
           updated_at?: string
+          visibility?: string | null
+          shared_with_roles?: string[] | null
         }
         Update: {
           created_at?: string
@@ -249,6 +253,8 @@ export type Database = {
           requires_signature?: boolean | null
           total_signers?: number | null
           updated_at?: string
+          visibility?: string | null
+          shared_with_roles?: string[] | null
         }
         Relationships: [
           {

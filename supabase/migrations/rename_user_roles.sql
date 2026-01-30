@@ -4,7 +4,7 @@
 -- Step 1: Create new enum with updated values
 CREATE TYPE public.app_role_new AS ENUM (
     'admin',
-    'officer',
+    'e_board',
     'committee_chairman',
     'member',
     'alumni'
@@ -19,6 +19,7 @@ UPDATE public.user_roles
 SET role = CASE 
   WHEN role = 'advisor' THEN 'alumni'
   WHEN role = 'committee_chair' THEN 'committee_chairman'
+  WHEN role = 'officer' THEN 'e_board'
   ELSE role
 END;
 
@@ -47,12 +48,13 @@ $$;
 -- Step 7: Update RLS policies that reference the old role names
 -- Update events policy
 DROP POLICY IF EXISTS "Officers and admins can create events" ON public.events;
-CREATE POLICY "Officers and admins can create events" 
+DROP POLICY IF EXISTS "E-Board and admins can create events" ON public.events;
+CREATE POLICY "E-Board and admins can create events" 
   ON public.events FOR INSERT 
   TO authenticated 
   WITH CHECK (
     public.has_role(auth.uid(), 'admin'::public.app_role) 
-    OR public.has_role(auth.uid(), 'officer'::public.app_role) 
+    OR public.has_role(auth.uid(), 'e_board'::public.app_role) 
     OR public.has_role(auth.uid(), 'committee_chairman'::public.app_role)
   );
 

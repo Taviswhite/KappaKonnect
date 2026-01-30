@@ -156,8 +156,6 @@ const Index = () => {
                         <StatCard
                           title="Active Members"
                           value={activeMemberCount}
-                          change="Matches Members page active count"
-                          changeType="neutral"
                           icon={Users}
                           iconColor="primary"
                         />
@@ -165,8 +163,6 @@ const Index = () => {
                       <StatCard
                         title="Alumni Network"
                         value={alumniCount}
-                        change="Total alumni profiles"
-                        changeType="neutral"
                         icon={Calendar}
                         iconColor="accent"
                       />
@@ -180,9 +176,6 @@ const Index = () => {
               case "quickActions":
                 return (
                   <section key={key} className="w-full">
-                    <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
-                      Quick Actions
-                    </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full">
                       <CreateEventDialog>
                         <button

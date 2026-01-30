@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -47,14 +47,14 @@ import {
   FileText,
   Scale,
   ClipboardList,
+  Bot,
 } from "lucide-react";
 import { ChapterHealthChart } from "@/components/ui/chapter-health-chart";
-import { SendAnnouncementDialog } from "@/components/dialogs/SendAnnouncementDialog";
+import { LineGraphStatistics } from "@/components/ui/line-graph-statistics";
 import { cn, formatCrossingDisplay } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { EditUserRoleDialog } from "@/components/dialogs/EditUserRoleDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -86,17 +86,18 @@ type SystemIssue = { id: string; title: string; detail: string; severity: "low" 
 
 type AdminActivity = { id: string; message: string; timeAgo: string; icon: "user" | "settings" | "report" | "import"; createdAt: number };
 
-type AdminTab = "overview" | "members" | "tasks" | "notifications" | "settings" | "analytics" | "audit" | "violations";
+type AdminTab = "overview" | "members" | "tasks" | "analytics" | "audit" | "violations" | "security";
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [memberTypeFilter, setMemberTypeFilter] = useState<"all" | "undergraduate" | "alumni">("all");
-  const [settingsForm, setSettingsForm] = useState({ chapter_name: "", charter_year: "", semester: "", attendance_threshold_pct: "", dues_amount_cents: "" });
   const [violationDialogOpen, setViolationDialogOpen] = useState(false);
   const [newViolation, setNewViolation] = useState({ user_id: "", violation_type: "", description: "", severity: "medium" as string });
   const [scanRunning, setScanRunning] = useState(false);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [autoViolationRunning, setAutoViolationRunning] = useState(false);
   const { hasRole, user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -339,12 +340,27 @@ const AdminPanel = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vulnerability_scan_results")
-        .select("id, created_at, target, issues, summary")
+        .select("id, created_at, target, issues, summary, scan_type")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: canAccessAdminPanel,
+  });
+
+  // All scan reports for Security tab (last 30)
+  const { data: scanReports = [], refetch: refetchScanReports } = useQuery({
+    queryKey: ["admin-vulnerability-scan-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vulnerability_scan_results")
+        .select("id, created_at, target, issues, summary, scan_type")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data ?? [];
     },
     enabled: canAccessAdminPanel,
   });
@@ -377,17 +393,6 @@ const AdminPanel = () => {
     enabled: canAccessAdminPanel,
     retry: 1,
     staleTime: 60_000,
-  });
-
-  // Chapter settings (single row)
-  const { data: chapterSettings, refetch: refetchChapterSettings } = useQuery({
-    queryKey: ["admin-chapter-settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("chapter_settings").select("*").limit(1).single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
-    },
-    enabled: canAccessAdminPanel,
   });
 
   const getRoleForUser = (userId: string): AppRole => {
@@ -470,7 +475,6 @@ const AdminPanel = () => {
     queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
     queryClient.invalidateQueries({ queryKey: ["admin-audit-log"] });
     queryClient.invalidateQueries({ queryKey: ["admin-violations"] });
-    queryClient.invalidateQueries({ queryKey: ["admin-chapter-settings"] });
     queryClient.invalidateQueries({ queryKey: ["admin-overdue-tasks"] });
     queryClient.invalidateQueries({ queryKey: ["admin-overdue-tasks-list"] });
     queryClient.invalidateQueries({ queryKey: ["admin-all-tasks"] });
@@ -543,24 +547,24 @@ const AdminPanel = () => {
   }, [attendanceRecords]);
 
   const ATTENDANCE_WARNING_THRESHOLD = 0.7;
+  const AUTOMATED_VIOLATION_ATTENDANCE_THRESHOLD = 0.7;
+
+  // Open violations by (user_id, violation_type) to avoid duplicate auto-violations
+  const openViolationTypesByUser = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    violationsList
+      .filter((v: { resolved_at: string | null }) => !v.resolved_at)
+      .forEach((v: { user_id: string; violation_type: string }) => {
+        if (!map.has(v.user_id)) map.set(v.user_id, new Set());
+        map.get(v.user_id)!.add(v.violation_type);
+      });
+    return map;
+  }, [violationsList]);
 
   const committeeOptions = useMemo(() => {
     const set = new Set(profiles.map((p: { committee?: string | null }) => p.committee).filter(Boolean) as string[]);
     return ["", ...Array.from(set)].sort((a, b) => (a || "").localeCompare(b || ""));
   }, [profiles]);
-
-  // Sync settings form when chapter settings load
-  useEffect(() => {
-    if (chapterSettings) {
-      setSettingsForm({
-        chapter_name: chapterSettings.chapter_name ?? "",
-        charter_year: chapterSettings.charter_year != null ? String(chapterSettings.charter_year) : "",
-        semester: chapterSettings.semester ?? "",
-        attendance_threshold_pct: chapterSettings.attendance_threshold_pct != null ? String(chapterSettings.attendance_threshold_pct) : "70",
-        dues_amount_cents: chapterSettings.dues_amount_cents != null ? String(chapterSettings.dues_amount_cents) : "",
-      });
-    }
-  }, [chapterSettings]);
 
   const logAudit = async (action_type: string, target_type?: string, target_id?: string, details?: Record<string, unknown>) => {
     if (!user?.id) return;
@@ -585,28 +589,38 @@ const AdminPanel = () => {
     toast.success("Committee updated");
   };
 
-  const saveChapterSettings = async () => {
-    const payload = {
-      chapter_name: settingsForm.chapter_name || null,
-      charter_year: settingsForm.charter_year ? parseInt(settingsForm.charter_year, 10) : null,
-      semester: settingsForm.semester || null,
-      attendance_threshold_pct: settingsForm.attendance_threshold_pct ? parseInt(settingsForm.attendance_threshold_pct, 10) : 70,
-      dues_amount_cents: settingsForm.dues_amount_cents ? parseInt(settingsForm.dues_amount_cents, 10) : null,
-      updated_at: new Date().toISOString(),
-    };
-    const { data: existing } = await supabase.from("chapter_settings").select("id").limit(1).single();
-    const { error } = existing
-      ? await supabase.from("chapter_settings").update(payload).eq("id", existing.id)
-      : await supabase.from("chapter_settings").insert(payload);
-    if (error) {
-      toast.error("Failed to save settings");
-      return;
+  const updateMemberRole = async (userId: string, newRole: AppRole) => {
+    const { data: existing } = await supabase
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ role: newRole })
+        .eq("user_id", userId);
+      if (error) {
+        toast.error("Failed to update role");
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: newRole });
+      if (error) {
+        toast.error("Failed to update role");
+        return;
+      }
     }
-    await logAudit("update_chapter_settings", "chapter_settings", existing?.id ?? undefined, payload);
-    refetchChapterSettings();
-    queryClient.invalidateQueries({ queryKey: ["admin-chapter-settings"] });
-    toast.success("Settings saved");
+    await logAudit("update_role", "user_roles", userId, { role: newRole });
+    queryClient.invalidateQueries({ queryKey: ["all-user-roles"] });
+    queryClient.invalidateQueries({ queryKey: ["member-count"] });
+    toast.success(`Role updated to ${newRole.replace(/_/g, " ")}`);
   };
+
+  const canChangeRoles = hasRole("admin") || hasRole("e_board");
 
   const addViolation = async () => {
     if (!newViolation.user_id || !newViolation.violation_type.trim()) {
@@ -631,12 +645,10 @@ const AdminPanel = () => {
     toast.success("Violation added");
   };
 
-  const runVulnerabilityScan = async () => {
+  const runVulnerabilityScan = async (scanType: "quick" | "full") => {
     if (!canAccessAdminPanel) return;
     setScanRunning(true);
     try {
-      // Edge Function is deployed with --no-verify-jwt; we use anon key so the call always works.
-      // Only admin/e_board see this button (canAccessAdminPanel).
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       if (!anonKey) {
         toast.error("App config error: missing Supabase key.");
@@ -650,7 +662,11 @@ const AdminPanel = () => {
           Authorization: `Bearer ${anonKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ target, quick: true }),
+        body: JSON.stringify({
+          target,
+          quick: scanType === "quick",
+          full: scanType === "full",
+        }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -663,9 +679,12 @@ const AdminPanel = () => {
         return;
       }
       queryClient.invalidateQueries({ queryKey: ["admin-vulnerability-scan-latest"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-vulnerability-scan-reports"] });
       await refetchVulnScan();
+      await refetchScanReports();
       const issuesCount = (payload as { issues_count?: number })?.issues_count;
-      toast.success(issuesCount != null ? `Scan complete: ${issuesCount} issue(s) found — see System & upcoming issues` : "Scan complete — see System & upcoming issues");
+      const label = scanType === "full" ? "Full scan" : "Quick scan";
+      toast.success(issuesCount != null ? `${label} complete: ${issuesCount} issue(s) found — see Security tab` : `${label} complete — see Security tab`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Scan failed");
     } finally {
@@ -685,6 +704,71 @@ const AdminPanel = () => {
     await logAudit("resolve_violation", "violation", violationId, {});
     refetchViolations();
     toast.success("Violation resolved");
+  };
+
+  const runAutomatedViolationCheck = async () => {
+    if (!canAccessAdminPanel) return;
+    setAutoViolationRunning(true);
+    let created = 0;
+    try {
+      const activeMembers = filteredMembers.filter((m) => {
+        const role = getRoleForUser(m.user_id);
+        return role !== "admin" && role !== "alumni";
+      });
+
+      // Rule 1: Low attendance — active members below threshold with at least one event tracked
+      if (memberAttendanceRate.totalEventsWithAttendance >= 1) {
+        for (const member of activeMembers) {
+          const rate = memberAttendanceRate.rateByUser.get(member.user_id) ?? 1;
+          if (rate < AUTOMATED_VIOLATION_ATTENDANCE_THRESHOLD) {
+            const hasOpen = openViolationTypesByUser.get(member.user_id)?.has("Low attendance");
+            if (!hasOpen) {
+              const { error } = await supabase.from("violations").insert({
+                user_id: member.user_id,
+                violation_type: "Low attendance",
+                description: `Auto: attendance below ${Math.round(AUTOMATED_VIOLATION_ATTENDANCE_THRESHOLD * 100)}% (current: ${Math.round(rate * 100)}% of ${memberAttendanceRate.totalEventsWithAttendance} events).`,
+                severity: "medium",
+                created_by: null,
+              });
+              if (!error) created++;
+            }
+          }
+        }
+      }
+
+      // Rule 2: Overdue task — members with overdue assigned tasks
+      const userIdsWithOverdue = new Set(
+        overdueTasksList
+          .map((t: { assigned_to: string | null }) => t.assigned_to)
+          .filter((id): id is string => id != null)
+      );
+      for (const userId of userIdsWithOverdue) {
+        const hasOpen = openViolationTypesByUser.get(userId)?.has("Overdue task");
+        if (!hasOpen) {
+          const { error } = await supabase.from("violations").insert({
+            user_id: userId,
+            violation_type: "Overdue task",
+            description: "Auto: member has one or more overdue assigned task(s).",
+            severity: "medium",
+            created_by: null,
+          });
+          if (!error) created++;
+        }
+      }
+
+      await logAudit("run_automated_violation_check", "violations", undefined, { created });
+      queryClient.invalidateQueries({ queryKey: ["admin-violations"] });
+      await refetchViolations();
+      toast.success(
+        created === 0
+          ? "Automated check complete. No new violations created."
+          : `Automated check complete. ${created} new violation(s) created.`
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Automated check failed");
+    } finally {
+      setAutoViolationRunning(false);
+    }
   };
 
   const systemIssues = useMemo((): SystemIssue[] => {
@@ -869,11 +953,8 @@ const AdminPanel = () => {
             <TabsTrigger value="tasks" className="gap-1.5">
               <ClipboardList className="w-4 h-4" /> Tasks & Committees
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1.5">
-              <Bell className="w-4 h-4" /> Notifications
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1.5">
-              <Settings className="w-4 h-4" /> System Settings
+            <TabsTrigger value="security" className="gap-1.5">
+              <Shield className="w-4 h-4" /> Security
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-1.5">
               <TrendingUp className="w-4 h-4" /> Analytics & Reports
@@ -886,177 +967,138 @@ const AdminPanel = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-8 mt-6">
-        {/* Overview (first thing admins see) */}
-        <Card className="glass-card border-0">
-          <CardHeader>
-            <CardTitle className="text-lg font-display font-bold">Overview</CardTitle>
-            <CardDescription>Key metrics at a glance. Full control below.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="rounded-full bg-primary/10 p-3">
-                  <Users className="w-6 h-6 text-primary" />
+          <TabsContent value="overview" className="mt-6">
+            <div className="space-y-10">
+              {/* Section: Recent activity + Security (side by side) */}
+              <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" />
+                      Recent activity
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Signups, events, check-ins, tasks</p>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    <div className="p-3 space-y-2">
+                      {activities.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-6 text-center">No recent activity.</p>
+                      ) : (
+                        activities.slice(0, 10).map((activity) => {
+                          const Icon = activity.icon === "user" ? UserPlus : activity.icon === "settings" ? Settings : activity.icon === "report" ? FileBarChart : ListTodo;
+                          return (
+                            <div key={activity.id} className="flex gap-3 p-2 rounded-lg hover:bg-muted/50">
+                              <Icon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium line-clamp-2">{activity.message}</p>
+                                <p className="text-xs text-muted-foreground">{activity.timeAgo}</p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
-                <div>
-                  <p className="text-2xl font-display font-bold text-foreground">{atAGlance.activeMembers}</p>
-                  <p className="text-xs text-muted-foreground">Active</p>
-                  <p className="text-xs text-muted-foreground">{atAGlance.alumniCount} alumni</p>
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Security
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {latestVulnScan
+                          ? `Latest scan: ${format(new Date(latestVulnScan.created_at), "MMM d, h:mm a")} · ${Array.isArray(latestVulnScan.issues) ? (latestVulnScan.issues as unknown[]).length : 0} issues`
+                          : "Run a scan in the Security tab."}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("security")} className="shrink-0">
+                      Open Security
+                    </Button>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Run quick or full vulnerability scans and view reports in the Security tab.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="rounded-full bg-accent/10 p-3">
-                  <Calendar className="w-6 h-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display font-bold text-foreground">{atAGlance.upcomingThisWeek}</p>
-                  <p className="text-xs text-muted-foreground">Events this week</p>
-                  <p className="text-xs text-muted-foreground">{atAGlance.upcomingThisMonth} this month</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="rounded-full bg-green-500/10 p-3">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display font-bold text-foreground">
-                    {atAGlance.lastEventAttendancePct != null ? `${atAGlance.lastEventAttendancePct}%` : "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Attendance (last event)</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="rounded-full bg-amber-500/10 p-3">
-                  <ListTodo className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display font-bold text-foreground">{atAGlance.overdueTasks}</p>
-                  <p className="text-xs text-muted-foreground">Tasks overdue</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="rounded-full bg-muted p-3">
-                  <UserPlus className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display font-bold text-foreground">{atAGlance.pendingApprovals}</p>
-                  <p className="text-xs text-muted-foreground">Pending approvals</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </section>
 
-        {/* Recent Activity & System & Upcoming Issues - side by side, compact */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-          <Card className="glass-card border-0 flex flex-col h-full min-h-[220px]">
-            <CardHeader className="py-3 pb-1.5">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Activity className="w-3.5 h-3.5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription className="text-[11px]">
-                User signups, events, check-ins, tasks
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1 min-h-0 p-3">
-              <ScrollArea className="h-[160px] rounded-md border border-border/50">
-                <div className="space-y-1.5 pr-3">
-                  {activities.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-4 text-center">No recent activity yet.</p>
+              {/* Section: Key metrics (line graph) */}
+              <section className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                <LineGraphStatistics
+                  title="Key Metrics"
+                  subtitle="Chapter health: members, attendance, and activity over time"
+                  members={atAGlance.activeMembers}
+                  attendance={atAGlance.lastEventAttendancePct}
+                  events={atAGlance.upcomingThisMonth}
+                  tasks={atAGlance.overdueTasks}
+                />
+              </section>
+
+              {/* Section: Event attendance */}
+              <section>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Event attendance</h2>
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  {attendanceLoading ? (
+                    <div className="p-8 space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-14 bg-muted/50 rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                  ) : attendanceRecords.length === 0 ? (
+                    <div className="p-12 text-center">
+                      <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <p className="text-sm font-medium">No attendance records yet</p>
+                      <p className="text-xs text-muted-foreground">Records appear when members check in to events.</p>
+                    </div>
                   ) : (
-                    activities.slice(0, 12).map((activity) => {
-                      const Icon =
-                        activity.icon === "user"
-                          ? UserPlus
-                          : activity.icon === "settings"
-                            ? Settings
-                            : activity.icon === "report"
-                              ? FileBarChart
-                              : ListTodo;
-                      return (
-                        <div
-                          key={activity.id}
-                          className="flex items-start gap-2 p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
-                        >
-                          <div className="rounded-full bg-primary/10 p-1.5 shrink-0 mt-0.5">
-                            <Icon className="w-3.5 h-3.5 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{activity.message}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{activity.timeAgo}</p>
-                          </div>
-                        </div>
-                      );
-                    })
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent border-b">
+                            <TableHead>Member</TableHead>
+                            <TableHead>Event</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Checked in</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {attendanceRecords.slice(0, 15).map((record: any) => (
+                            <TableRow key={record.id} className="border-b border-border/50">
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-xs">
+                                      {record.profiles?.full_name?.split(" ").map((n: string) => n[0]).join("") || "?"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium text-sm">{record.profiles?.full_name || "Unknown"}</p>
+                                    <p className="text-xs text-muted-foreground">{record.profiles?.email}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">{record.events?.title || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{record.events?.location || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {format(parseISO(record.checked_in_at), "MMM d, h:mm a")}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  {attendanceRecords.length > 15 && (
+                    <div className="px-4 py-2 border-t border-border text-center">
+                      <p className="text-xs text-muted-foreground">Showing latest 15. View full list in Members tab.</p>
+                    </div>
                   )}
                 </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-0 flex flex-col h-full min-h-[220px]">
-            <CardHeader className="py-3 pb-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    System & upcoming issues
-                  </CardTitle>
-                  <CardDescription className="text-[11px]">
-                    System health, storage, and vulnerability scan results
-                  </CardDescription>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={scanRunning}
-                  onClick={runVulnerabilityScan}
-                  className="shrink-0"
-                >
-                  {scanRunning ? "Scanning…" : "Run scan"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 flex-1 min-h-0 p-3">
-              <ScrollArea className="h-[160px] rounded-md border border-border/50">
-                <div className="overflow-x-auto pr-3">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Issue</TableHead>
-                        <TableHead>Detail</TableHead>
-                        <TableHead>Severity</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {systemIssues.map((issue) => (
-                        <TableRow key={issue.id} className="hover:bg-muted/30">
-                          <TableCell className="font-medium text-sm">{issue.title}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{issue.detail}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-xs",
-                                issue.severity === "high" && "border-destructive/50 text-destructive",
-                                issue.severity === "medium" && "border-amber-500/50 text-amber-600 dark:text-amber-400",
-                                issue.severity === "low" && "text-muted-foreground"
-                              )}
-                            >
-                              {issue.severity}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-
+              </section>
+            </div>
           </TabsContent>
 
           <TabsContent value="members" className="space-y-6 mt-6">
@@ -1108,7 +1150,7 @@ const AdminPanel = () => {
           <CardHeader>
             <CardTitle>User Management</CardTitle>
             <CardDescription>
-              Manage user roles and permissions. Click the shield icon to change a user's role.
+              Manage user roles and permissions. Use the Role dropdown to change a user&apos;s role.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1142,7 +1184,6 @@ const AdminPanel = () => {
                       <TableHead>Role</TableHead>
                       <TableHead>Committee</TableHead>
                       <TableHead>Attendance</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1183,12 +1224,30 @@ const AdminPanel = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs", roleColors[role] || "bg-muted")}
-                            >
-                              {roleLabel}
-                            </Badge>
+                            {canChangeRoles ? (
+                              <Select
+                                value={role}
+                                onValueChange={(value) => updateMemberRole(member.user_id, value as AppRole)}
+                              >
+                                <SelectTrigger className={cn("h-8 w-[140px] text-xs", roleColors[role] || "bg-muted")}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="member">Member</SelectItem>
+                                  <SelectItem value="committee_chairman">Committee Chairman</SelectItem>
+                                  <SelectItem value="e_board">E-Board</SelectItem>
+                                  <SelectItem value="alumni">Alumni</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={cn("text-xs", roleColors[role] || "bg-muted")}
+                              >
+                                {roleLabel}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Select
@@ -1218,114 +1277,6 @@ const AdminPanel = () => {
                               <span className="text-xs text-muted-foreground">OK</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <EditUserRoleDialog
-                              userId={member.user_id}
-                              userName={member.full_name}
-                              currentRole={role}
-                            >
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Shield className="w-4 h-4" />
-                              </Button>
-                            </EditUserRoleDialog>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Attendance Tracking */}
-        <Card className="glass-card border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              Event Attendance Tracking
-            </CardTitle>
-            <CardDescription>
-              View who checked in for events and when they checked in.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {attendanceLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : attendanceRecords.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle2 className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-display font-bold text-foreground mb-2">
-                  No Attendance Records
-                </h3>
-                <p className="text-muted-foreground">
-                  Attendance records will appear here when members check in to events.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>Member</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Checked In</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {attendanceRecords.map((record: any) => {
-                      const profile = record.profiles;
-                      const event = record.events;
-                      return (
-                        <TableRow key={record.id} className="hover:bg-secondary/30">
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="w-8 h-8 border border-primary">
-                                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                  {profile?.full_name?.split(" ").map((n: string) => n[0]).join("") || "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium text-foreground text-sm">
-                                  {profile?.full_name || "Unknown User"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {profile?.email || ""}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-foreground text-sm">
-                                {event?.title || "Unknown Event"}
-                              </p>
-                              {event?.start_time && (
-                                <p className="text-xs text-muted-foreground">
-                                  {format(parseISO(event.start_time), "MMM d, yyyy 'at' h:mm a")}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {event?.location || "-"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              <span className="text-sm text-muted-foreground">
-                                {format(parseISO(record.checked_in_at), "MMM d, h:mm a")}
-                              </span>
-                            </div>
-                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -1345,7 +1296,7 @@ const AdminPanel = () => {
                   Tasks & Committees
                 </CardTitle>
                 <CardDescription>
-                  All tasks with status. Committee members and tasks assigned to them below.
+                  All tasks with status, committee, and assignee. Open the Tasks page to create or manage tasks.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1405,153 +1356,195 @@ const AdminPanel = () => {
                     </TableBody>
                   </Table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <div className="rounded-lg border border-border p-4 bg-muted/20 space-y-4">
-                  <h4 className="font-semibold text-sm">Committee members & assigned tasks</h4>
-                  <p className="text-xs text-muted-foreground">Members in each committee and tasks assigned to them.</p>
-                  {committeeOptions.filter(Boolean).length === 0 ? (
-                    <span className="text-xs text-muted-foreground block">No committees set. Assign committees in the Members tab.</span>
-                  ) : (
-                    <div className="space-y-6">
-                      {committeeOptions.filter(Boolean).map((committee) => {
-                        const committeeMembers = profiles.filter((p: { committee?: string | null }) => p.committee === committee);
-                        return (
-                          <div key={committee} className="rounded-lg border border-border bg-background/50 overflow-hidden">
-                            <div className="px-3 py-2 border-b border-border bg-muted/30 font-medium text-sm">
-                              {committee}
+          <TabsContent value="security" className="mt-6">
+            <div className="space-y-8">
+              {/* Run scan: Quick + Full */}
+              <div className="rounded-xl border border-border bg-card shadow-sm p-6">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Vulnerability scan</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Run a quick scan for common issues or a full scan for deeper testing. Results are saved as reports below.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    variant="outline"
+                    disabled={scanRunning}
+                    onClick={() => runVulnerabilityScan("quick")}
+                    className="gap-2"
+                  >
+                    {scanRunning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+                    {scanRunning ? "Scanning…" : "Quick scan"}
+                  </Button>
+                  <Button
+                    variant="default"
+                    disabled={scanRunning}
+                    onClick={() => runVulnerabilityScan("full")}
+                    className="gap-2"
+                  >
+                    {scanRunning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                    {scanRunning ? "Scanning…" : "Full scan"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Scan reports list */}
+              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Scan reports</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Latest 30 scans. Expand a row to see issues.</p>
+                </div>
+                {scanReports.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                    <p className="text-sm font-medium">No scan reports yet</p>
+                    <p className="text-xs text-muted-foreground">Run a Quick or Full scan above to create reports.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {scanReports.map((report: { id: string; created_at: string; target: string | null; issues: unknown; summary: unknown; scan_type: string | null }) => {
+                      const issuesList = Array.isArray(report.issues) ? (report.issues as Record<string, unknown>[]) : [];
+                      const count = issuesList.length;
+                      const isExpanded = expandedReportId === report.id;
+                      return (
+                        <div key={report.id} className="bg-muted/20 hover:bg-muted/30">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedReportId(isExpanded ? null : report.id)}
+                            className="w-full px-4 py-3 flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0">
+                              <span className="text-sm font-medium whitespace-nowrap">
+                                {format(new Date(report.created_at), "MMM d, yyyy · h:mm a")}
+                              </span>
+                              <Badge variant="secondary" className="shrink-0">
+                                {report.scan_type === "full" ? "Full" : "Quick"}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground truncate">{report.target || "—"}</span>
+                              <span className="text-sm text-muted-foreground shrink-0">{count} issue{count !== 1 ? "s" : ""}</span>
                             </div>
-                            <div className="divide-y divide-border">
-                              {committeeMembers.length === 0 ? (
-                                <div className="px-3 py-4 text-xs text-muted-foreground">No members in this committee.</div>
+                            <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                          </button>
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-0 border-t border-border/50">
+                              {count === 0 ? (
+                                <p className="text-sm text-muted-foreground py-3">No issues in this scan.</p>
                               ) : (
-                                committeeMembers.map((member: { user_id: string; full_name: string }) => {
-                                  const assignedTasks = (allTasksList as { assigned_to: string | null; title: string; status: string | null; id: string }[]).filter(
-                                    (task) => task.assigned_to === member.user_id
-                                  );
-                                  return (
-                                    <div key={member.user_id} className="px-3 py-3">
-                                      <p className="font-medium text-sm mb-1">{member.full_name}</p>
-                                      {assignedTasks.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground">No tasks assigned</p>
-                                      ) : (
-                                        <ul className="text-xs space-y-1">
-                                          {assignedTasks.map((task) => (
-                                            <li key={task.id} className="flex items-center gap-2">
-                                              <Badge variant={task.status === "completed" ? "secondary" : "outline"} className="text-xs capitalize shrink-0">
-                                                {task.status?.replace("_", " ") ?? "todo"}
+                                <div className="rounded-lg border border-border overflow-hidden mt-2">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="hover:bg-transparent">
+                                        <TableHead>Issue</TableHead>
+                                        <TableHead>Detail</TableHead>
+                                        <TableHead>Severity</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {issuesList.map((r: Record<string, unknown>, idx: number) => {
+                                        const severity = (["high", "medium", "low"].includes(String(r.severity ?? "")) ? r.severity : "low") as "low" | "medium" | "high";
+                                        return (
+                                          <TableRow key={idx} className="hover:bg-muted/30">
+                                            <TableCell className="font-medium text-sm">{String(r.title ?? "—")}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground max-w-md truncate">{String(r.detail ?? "—")}</TableCell>
+                                            <TableCell>
+                                              <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                  "text-xs",
+                                                  severity === "high" && "border-destructive/50 text-destructive",
+                                                  severity === "medium" && "border-amber-500/50 text-amber-600 dark:text-amber-400",
+                                                  severity === "low" && "text-muted-foreground"
+                                                )}
+                                              >
+                                                {String(severity)}
                                               </Badge>
-                                              <span className="text-muted-foreground">{task.title}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  );
-                                })
+                                            </TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              )}
+                              {report.summary && typeof report.summary === "object" && (
+                                <p className="text-xs text-muted-foreground mt-2">{JSON.stringify(report.summary)}</p>
                               )}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-          <TabsContent value="notifications" className="space-y-6 mt-6">
-            <Card className="glass-card border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Notifications & Announcements
-                </CardTitle>
-                <CardDescription>
-                  Send chapter-wide or targeted announcements. Target by line, committee, or role.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <SendAnnouncementDialog>
-                  <Button className="gap-2">
-                    <Megaphone className="w-4 h-4" />
-                    Send chapter-wide announcement
-                  </Button>
-                </SendAnnouncementDialog>
-                <p className="text-xs text-muted-foreground">
-                  Targeted messages (by line, committee, role) and scheduled announcements coming soon.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings" className="space-y-6 mt-6">
-            <Card className="glass-card border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  System Settings
-                </CardTitle>
-                <CardDescription>
-                  Chapter info, semester, attendance rules, dues amount. Theme in app Settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 max-w-md">
-                  <div className="space-y-2">
-                    <Label>Chapter name</Label>
-                    <Input
-                      placeholder="e.g. Kappa Alpha Psi"
-                      className="bg-secondary/50"
-                      value={settingsForm.chapter_name}
-                      onChange={(e) => setSettingsForm((s) => ({ ...s, chapter_name: e.target.value }))}
-                    />
+              {/* Latest scan summary + Security status */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Latest scan</h3>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Charter year</Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 1911"
-                      className="bg-secondary/50"
-                      value={settingsForm.charter_year}
-                      onChange={(e) => setSettingsForm((s) => ({ ...s, charter_year: e.target.value }))}
-                    />
+                  <div className="p-4">
+                    {latestVulnScan ? (
+                      <>
+                        <p className="text-sm">
+                          {format(new Date(latestVulnScan.created_at), "PPp")}
+                          {latestVulnScan.target ? ` · ${String(latestVulnScan.target)}` : ""}
+                        </p>
+                        {latestVulnScan.summary && (
+                          <p className="text-xs text-muted-foreground mt-1">{typeof latestVulnScan.summary === "object" ? JSON.stringify(latestVulnScan.summary) : String(latestVulnScan.summary)}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">{latestScanIssues.length} issue(s) in this scan. Expand report above for details.</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No scan run yet. Use Quick or Full scan above.</p>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Current semester</Label>
-                    <Input
-                      placeholder="e.g. Spring 2025"
-                      className="bg-secondary/50"
-                      value={settingsForm.semester}
-                      onChange={(e) => setSettingsForm((s) => ({ ...s, semester: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Attendance threshold % (warning below)</Label>
-                    <Input
-                      type="number"
-                      placeholder="70"
-                      className="bg-secondary/50"
-                      value={settingsForm.attendance_threshold_pct}
-                      onChange={(e) => setSettingsForm((s) => ({ ...s, attendance_threshold_pct: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Dues amount (cents)</Label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      className="bg-secondary/50"
-                      value={settingsForm.dues_amount_cents}
-                      onChange={(e) => setSettingsForm((s) => ({ ...s, dues_amount_cents: e.target.value }))}
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" onClick={saveChapterSettings}>
-                    Save settings
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border">
+                    <h3 className="font-semibold text-sm">Security status</h3>
+                  </div>
+                  <div className="overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead>Check</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Severity</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {systemIssues.filter((i) => ["api-status", "security-vulnerabilities", "data-protection", "vuln-scan-latest"].includes(i.id)).map((issue) => (
+                          <TableRow key={issue.id} className="hover:bg-muted/30">
+                            <TableCell className="font-medium text-sm">{issue.title}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{issue.detail}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-xs",
+                                  issue.severity === "high" && "border-destructive/50 text-destructive",
+                                  issue.severity === "medium" && "border-amber-500/50 text-amber-600 dark:text-amber-400",
+                                  issue.severity === "low" && "text-muted-foreground"
+                                )}
+                              >
+                                {issue.severity}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Review the Audit Log tab for security-related actions (role changes, settings, violations).
+              </p>
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6 mt-6">
@@ -1571,6 +1564,7 @@ const AdminPanel = () => {
                   subtitle="Toggle metrics below to show or hide in the chart"
                   attendance={atAGlance.lastEventAttendancePct}
                   members={atAGlance.activeMembers}
+                  events={atAGlance.upcomingThisMonth}
                   tasks={atAGlance.overdueTasks}
                   alumni={atAGlance.alumniCount}
                 />
@@ -1639,6 +1633,35 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="violations" className="space-y-6 mt-6">
+            {/* Automated Violation System */}
+            <Card className="glass-card border-0 border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-primary" />
+                  Automated Violation System
+                </CardTitle>
+                <CardDescription>
+                  Run an automated check to create violations based on rules: <strong>Low attendance</strong> (below 70% of events) and <strong>Overdue task</strong> (members with overdue assigned tasks). Only one open violation per type per member is created. Resolve violations manually when addressed.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={autoViolationRunning}
+                  onClick={runAutomatedViolationCheck}
+                  className="gap-2"
+                >
+                  {autoViolationRunning ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Bot className="w-4 h-4" />
+                  )}
+                  {autoViolationRunning ? "Running check…" : "Run automated check"}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="glass-card border-0">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1796,7 +1819,7 @@ const AdminPanel = () => {
                   Role Management
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Click the shield icon next to any user to change their role. You can assign Admin, E-Board, Committee Chairman, Member, or Alumni roles.
+                  Use the Role dropdown in the Members tab to change any user&apos;s role. You can assign Admin, E-Board, Committee Chairman, Member, or Alumni roles.
                 </p>
               </div>
               <div className="p-4 rounded-lg bg-secondary/20">

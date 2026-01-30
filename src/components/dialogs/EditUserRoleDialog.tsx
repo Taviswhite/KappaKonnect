@@ -25,8 +25,8 @@ export function EditUserRoleDialog({ userId, userName, currentRole, children }: 
   const { hasRole } = useAuth();
   const queryClient = useQueryClient();
 
-  // Only admins can change roles
-  const canEditRoles = hasRole("admin");
+  // Admins and e_board can change roles (e.g. from Admin Panel Members tab)
+  const canEditRoles = hasRole("admin") || hasRole("e_board");
 
   if (!canEditRoles) {
     return null;

@@ -4,7 +4,7 @@
 -- =====================
 
 -- Channels table for group chats
-CREATE TABLE public.channels (
+CREATE TABLE IF NOT EXISTS public.channels (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
@@ -15,7 +15,7 @@ CREATE TABLE public.channels (
 );
 
 -- Messages table for chat messages
-CREATE TABLE public.messages (
+CREATE TABLE IF NOT EXISTS public.messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   channel_id UUID REFERENCES public.channels(id) ON DELETE CASCADE,
   sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE public.messages (
 );
 
 -- Direct messages table
-CREATE TABLE public.direct_messages (
+CREATE TABLE IF NOT EXISTS public.direct_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
   recipient_id UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE public.direct_messages (
 -- =====================
 
 -- Document folders
-CREATE TABLE public.document_folders (
+CREATE TABLE IF NOT EXISTS public.document_folders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -47,7 +47,7 @@ CREATE TABLE public.document_folders (
 );
 
 -- Documents table
-CREATE TABLE public.documents (
+CREATE TABLE IF NOT EXISTS public.documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   file_type TEXT NOT NULL DEFAULT 'PDF',
@@ -58,11 +58,13 @@ CREATE TABLE public.documents (
   total_signers INTEGER DEFAULT 0,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  visibility TEXT DEFAULT 'private' CHECK (visibility IN ('public', 'private', 'shared')),
+  shared_with_roles TEXT[] DEFAULT ARRAY[]::text[]
 );
 
 -- Document signatures tracking
-CREATE TABLE public.document_signatures (
+CREATE TABLE IF NOT EXISTS public.document_signatures (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID REFERENCES public.documents(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -74,7 +76,7 @@ CREATE TABLE public.document_signatures (
 -- ALUMNI TABLE
 -- =====================
 
-CREATE TABLE public.alumni (
+CREATE TABLE IF NOT EXISTS public.alumni (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   full_name TEXT NOT NULL,
@@ -111,13 +113,17 @@ CREATE POLICY "Authenticated users can view channels"
 ON public.channels FOR SELECT
 USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Officers and admins can create channels"
+DROP POLICY IF EXISTS "Officers and admins can create channels" ON public.channels;
+DROP POLICY IF EXISTS "E-Board and admins can create channels" ON public.channels;
+CREATE POLICY "E-Board and admins can create channels"
 ON public.channels FOR INSERT
-WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer'));
+WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board'));
 
-CREATE POLICY "Officers and admins can update channels"
+DROP POLICY IF EXISTS "Officers and admins can update channels" ON public.channels;
+DROP POLICY IF EXISTS "E-Board and admins can update channels" ON public.channels;
+CREATE POLICY "E-Board and admins can update channels"
 ON public.channels FOR UPDATE
-USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer') OR created_by = auth.uid());
+USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board') OR created_by = auth.uid());
 
 CREATE POLICY "Admins can delete channels"
 ON public.channels FOR DELETE
@@ -163,21 +169,45 @@ USING (auth.uid() = sender_id);
 -- RLS POLICIES - DOCUMENTS
 -- =====================
 
+DROP POLICY IF EXISTS "Authenticated users can view documents" ON public.documents;
 CREATE POLICY "Authenticated users can view documents"
 ON public.documents FOR SELECT
+TO authenticated
 USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Officers and admins can create documents"
+DROP POLICY IF EXISTS "Officers and admins can create documents" ON public.documents;
+DROP POLICY IF EXISTS "E-Board and admins can create documents" ON public.documents;
+CREATE POLICY "E-Board and admins can create documents"
 ON public.documents FOR INSERT
-WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer'));
+WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board'));
 
-CREATE POLICY "Officers and admins can update documents"
+-- Everyone can create documents (own files; admin/eboard can set visibility to public)
+DROP POLICY IF EXISTS "Authenticated users can create documents" ON public.documents;
+CREATE POLICY "Authenticated users can create documents"
+ON public.documents FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Officers and admins can update documents" ON public.documents;
+DROP POLICY IF EXISTS "E-Board and admins can update documents" ON public.documents;
+CREATE POLICY "E-Board and admins can update documents"
 ON public.documents FOR UPDATE
-USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer') OR created_by = auth.uid());
+USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board') OR created_by = auth.uid());
 
 CREATE POLICY "Admins can delete documents"
 ON public.documents FOR DELETE
 USING (has_role(auth.uid(), 'admin'));
+
+-- Users can delete documents they created; E-Board can delete any
+DROP POLICY IF EXISTS "Users can delete own documents" ON public.documents;
+CREATE POLICY "Users can delete own documents"
+ON public.documents FOR DELETE
+USING (created_by = auth.uid());
+
+DROP POLICY IF EXISTS "E-Board can delete documents" ON public.documents;
+CREATE POLICY "E-Board can delete documents"
+ON public.documents FOR DELETE
+USING (has_role(auth.uid(), 'e_board'));
 
 -- =====================
 -- RLS POLICIES - DOCUMENT FOLDERS
@@ -187,9 +217,24 @@ CREATE POLICY "Authenticated users can view folders"
 ON public.document_folders FOR SELECT
 USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Officers and admins can manage folders"
+DROP POLICY IF EXISTS "Officers and admins can manage folders" ON public.document_folders;
+DROP POLICY IF EXISTS "E-Board and admins can manage folders" ON public.document_folders;
+CREATE POLICY "E-Board and admins can manage folders"
 ON public.document_folders FOR ALL
-USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer'));
+USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board'));
+
+-- Allow any authenticated user to create folders; users can update/delete their own
+CREATE POLICY "Authenticated users can create folders"
+ON public.document_folders FOR INSERT
+WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Users can update own folders"
+ON public.document_folders FOR UPDATE
+USING (created_by = auth.uid());
+
+CREATE POLICY "Users can delete own folders"
+ON public.document_folders FOR DELETE
+USING (created_by = auth.uid());
 
 -- =====================
 -- RLS POLICIES - DOCUMENT SIGNATURES
@@ -211,13 +256,17 @@ CREATE POLICY "Authenticated users can view alumni"
 ON public.alumni FOR SELECT
 USING (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Officers and admins can manage alumni"
+DROP POLICY IF EXISTS "Officers and admins can manage alumni" ON public.alumni;
+DROP POLICY IF EXISTS "E-Board and admins can manage alumni" ON public.alumni;
+CREATE POLICY "E-Board and admins can manage alumni"
 ON public.alumni FOR INSERT
-WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer'));
+WITH CHECK (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board'));
 
-CREATE POLICY "Officers and admins can update alumni"
+DROP POLICY IF EXISTS "Officers and admins can update alumni" ON public.alumni;
+DROP POLICY IF EXISTS "E-Board and admins can update alumni" ON public.alumni;
+CREATE POLICY "E-Board and admins can update alumni"
 ON public.alumni FOR UPDATE
-USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'officer'));
+USING (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'e_board'));
 
 CREATE POLICY "Admins can delete alumni"
 ON public.alumni FOR DELETE
