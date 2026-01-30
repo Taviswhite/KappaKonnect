@@ -512,17 +512,23 @@ function ChannelMembersDialog({ channelId, channelName }: { channelId: string; c
 
         if (!data || data.length === 0) return [];
 
-        // Fetch profiles for members
+        // Fetch profiles for members (exclude admin account so it stays in background)
         const userIds = data.map((m: any) => m.user_id);
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin");
+        const adminUserIds = new Set(adminRoles?.map((r) => r.user_id) || []);
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, full_name, email, avatar_url")
           .in("user_id", userIds);
 
-        return profilesData?.map((profile: any) => ({
+        const mapped = (profilesData || []).map((profile: any) => ({
           user_id: profile.user_id,
           profiles: profile,
-        })) || [];
+        }));
+        return mapped.filter((m: any) => !adminUserIds.has(m.user_id));
       } catch (error) {
         console.error("Error fetching channel members:", error);
         return [];

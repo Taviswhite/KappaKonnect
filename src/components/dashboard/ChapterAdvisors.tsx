@@ -1,11 +1,12 @@
-import { GraduationCap } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { avatarUrlForAlumni } from "@/lib/utils";
+import XScroll from "@/components/ui/x-scroll";
 
 // Chapter Advisor names to display
 const ADVISOR_NAMES = [
@@ -26,8 +27,41 @@ type AdvisorAlumni = {
   line_order?: number | null;
 };
 
+const ADVISOR_CARD_CLASS =
+  "shrink-0 w-[120px] flex flex-col items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2.5 py-2.5";
+
+function AdvisorCard({
+  alum,
+  index,
+}: {
+  alum: AdvisorAlumni;
+  index: number;
+}) {
+  return (
+    <div
+      className={ADVISOR_CARD_CLASS}
+      style={{ animationDelay: `${index * 40}ms` }}
+    >
+      <Avatar className="w-10 h-10 border border-primary shrink-0">
+        <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
+        <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
+          {alum.full_name?.split(" ").map((n) => n[0]).join("") || "A"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0 flex flex-col items-center text-center w-full">
+        <p className="font-semibold text-xs text-foreground truncate w-full">
+          {alum.full_name}
+        </p>
+        <p className="text-[11px] text-muted-foreground truncate w-full">
+          {alum.industry || "Chapter Advisor"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ChapterAdvisors() {
-  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(false);
   const { user } = useAuth();
 
   const { data: advisors = [], isLoading } = useQuery({
@@ -79,19 +113,29 @@ export function ChapterAdvisors() {
   });
 
   return (
-    <div className="glass-card rounded-xl p-2.5 sm:p-3 animate-fade-in card-hover">
+    <div className="glass-card rounded-xl px-2 py-2.5 sm:px-2 sm:py-3 animate-fade-in card-hover min-w-0 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base sm:text-lg font-display font-bold text-foreground">
           Chapter Advisors
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-[11px] text-muted-foreground h-7 px-2"
-          onClick={() => navigate("/alumni")}
-        >
-          View all
-        </Button>
+        {advisors.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[11px] text-muted-foreground h-7 px-2 gap-1"
+            onClick={() => setExpanded((e) => !e)}
+          >
+            {expanded ? (
+              <>
+                Show less <ChevronUp className="w-3 h-3" />
+              </>
+            ) : (
+              <>
+                View all <ChevronDown className="w-3 h-3" />
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -114,31 +158,20 @@ export function ChapterAdvisors() {
             Chapter advisors will appear here
           </p>
         </div>
-      ) : (
-        <div className="space-y-1.5">
+      ) : expanded ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pb-1 overflow-auto min-h-0 flex-1">
           {advisors.map((alum, index) => (
-            <div
-              key={alum.id}
-              className="w-full flex flex-col items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2.5 py-2.5"
-              style={{ animationDelay: `${index * 40}ms` }}
-            >
-              <Avatar className="w-8 h-8 border border-primary shrink-0">
-                <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
-                  {alum.full_name?.split(" ").map((n) => n[0]).join("") || "A"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0 flex flex-col items-center text-center">
-                <p className="font-semibold text-xs text-foreground truncate w-full">
-                  {alum.full_name}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate w-full">
-                  {alum.industry || "Chapter Advisor"}
-                </p>
-              </div>
-            </div>
+            <AdvisorCard key={alum.id} alum={alum} index={index} />
           ))}
         </div>
+      ) : (
+        <XScroll className="w-full overflow-x-auto min-h-[140px]">
+          <div className="flex gap-2 pb-1">
+            {advisors.map((alum, index) => (
+              <AdvisorCard key={alum.id} alum={alum} index={index} />
+            ))}
+          </div>
+        </XScroll>
       )}
     </div>
   );

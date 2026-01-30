@@ -43,10 +43,16 @@ const moreNavItems = [
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
+// In production (e.g. Vercel), hide Admin unless VITE_SHOW_ADMIN_PANEL is set
+const showAdminInNav = () => {
+  if (!import.meta.env.PROD) return true;
+  return import.meta.env.VITE_SHOW_ADMIN_PANEL === "true";
+};
+
 export function BottomNav() {
   const location = useLocation();
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("admin");
+  const isAdmin = hasRole("admin") && showAdminInNav();
   const mainItems = mainNavItems;
   const moreItems = moreNavItems;
 
@@ -78,7 +84,7 @@ export function BottomNav() {
               variant="ghost"
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 h-full py-2 rounded-lg transition-colors",
-                moreItems.some((i) => location.pathname === i.path) || (isAdmin && location.pathname === "/admin")
+                moreItems.some((i) => location.pathname === i.path) || (canSeeAdminPanel && location.pathname === "/admin")
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               )}
@@ -102,7 +108,7 @@ export function BottomNav() {
                 </Link>
               </DropdownMenuItem>
             ))}
-            {isAdmin && (
+            {canSeeAdminPanel && (
               <DropdownMenuItem asChild>
                 <Link
                   to="/admin"

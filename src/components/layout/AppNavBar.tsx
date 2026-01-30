@@ -27,7 +27,8 @@ const mainNavItems: NavItem[] = [
 export function AppNavBar() {
   try {
     const { hasRole } = useAuth();
-    const isAdmin = hasRole ? hasRole("admin") : false;
+    // Admin Panel: only for admin and e_board (not shown in nav as "admin account", just a management link)
+    const canSeeAdminPanel = hasRole ? (hasRole("admin") || hasRole("e_board")) : false;
 
     const moreNavItems = useMemo<NavItem[]>(() => {
       const items: NavItem[] = [
@@ -41,18 +42,18 @@ export function AppNavBar() {
         { name: "Settings", url: "/settings", icon: Settings },
       ];
       
-      if (isAdmin) {
+      if (canSeeAdminPanel) {
         items.push({ name: "Admin Panel", url: "/admin", icon: Shield });
       }
       
       return items;
-    }, [isAdmin]);
+    }, [canSeeAdminPanel]);
 
     return (
       <NavBar
         items={mainNavItems}
         moreItems={moreNavItems}
-        showAdmin={isAdmin}
+        showAdmin={canSeeAdminPanel}
         alwaysBottom
       />
     );

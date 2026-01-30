@@ -63,8 +63,8 @@ const AdminPanel = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Only admins can access this page
-  const isAdmin = hasRole("admin");
+  // Admin and e_board can access; admin account is never shown in member list
+  const canAccessAdminPanel = hasRole("admin") || hasRole("e_board");
 
   // Fetch profiles from database
   const { data: profiles = [], isLoading: profilesLoading } = useQuery({
@@ -134,7 +134,7 @@ const AdminPanel = () => {
         events: eventsData?.find(e => e.id === record.event_id) || null,
       }));
     },
-    enabled: isAdmin,
+    enabled: canAccessAdminPanel,
   });
 
   const getRoleForUser = (userId: string): AppRole => {
@@ -145,7 +145,11 @@ const AdminPanel = () => {
   const isLoading = profilesLoading || rolesLoading;
 
   // Filter members
-  const filteredMembers = profiles.filter((m) => {
+  // Exclude admin account from list so it stays a background account
+  const adminUserIds = new Set(
+    (userRoles || []).filter((r) => r.role === "admin").map((r) => r.user_id),
+  );
+  const filteredMembers = profiles.filter((m) => !adminUserIds.has(m.user_id)).filter((m) => {
     const matchesSearch = 
       m.full_name.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -239,7 +243,7 @@ const AdminPanel = () => {
     }
   };
 
-  if (!isAdmin) {
+  if (!canAccessAdminPanel) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -250,7 +254,7 @@ const AdminPanel = () => {
                 Access Denied
               </CardTitle>
               <CardDescription>
-                You need admin privileges to access this page.
+                You need admin or e-board privileges to access this page.
               </CardDescription>
             </CardHeader>
           </Card>

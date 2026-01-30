@@ -1,6 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Activity } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export function RecentActivity() {
   const activities: Array<{

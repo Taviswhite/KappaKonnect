@@ -22,7 +22,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { TaskList } from "@/components/dashboard/TaskList";
 import { AttendanceCheckInCard } from "@/components/dashboard/AttendanceCheckInCard";
 import { EBoardCard } from "@/components/dashboard/EBoardCard";
-import { LeadershipCard } from "@/components/dashboard/LeadershipCard";
+import { ChapterAdvisors } from "@/components/dashboard/ChapterAdvisors";
 import { fetchAlumniList } from "@/lib/alumni-data";
 
 const Index = () => {
@@ -174,11 +174,11 @@ const Index = () => {
                 );
               case "quickActions":
                 return (
-                  <section key={key}>
+                  <section key={key} className="w-full">
                     <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
                       Quick Actions
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full">
                       <CreateEventDialog>
                         <button
                           className="group glass-card rounded-xl p-4 sm:p-5 flex items-center gap-4 card-hover card-press text-left"
@@ -216,12 +216,12 @@ const Index = () => {
                           variant="ghost"
                           className="group h-auto w-full justify-start glass-card rounded-xl p-4 sm:p-5 flex items-center gap-4 card-hover card-press border border-border hover:border-primary/20 transition-colors duration-150"
                         >
-                          <div className="icon-container icon-container-accent group-hover:scale-105 transition-transform duration-150">
+                          <div className="icon-container icon-container-accent group-hover:scale-105 transition-transform duration-150 shrink-0">
                             <Megaphone className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
                           </div>
-                          <div>
-                            <p className="font-semibold text-foreground">Send Announcement</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                          <div className="min-w-0 text-left">
+                            <p className="font-semibold text-foreground text-sm sm:text-base truncate">Send Announcement</p>
+                            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
                               Notify all members
                             </p>
                           </div>
@@ -231,11 +231,35 @@ const Index = () => {
                   </section>
                 );
               case "advisors":
+              case "eBoard": {
+                const leadershipIndex = dashboardOrder.findIndex(
+                  (k) => k === "advisors" || k === "eBoard"
+                );
+                if (key !== dashboardOrder[leadershipIndex]) return null;
+                const advisorsFirst =
+                  dashboardOrder[leadershipIndex] === "advisors";
                 return (
-                  <section key={key}>
-                    <LeadershipCard />
+                  <section
+                    key="advisors-eBoard"
+                    className="flex gap-3 w-full min-h-[200px] items-stretch"
+                  >
+                    <div className="flex-1 min-w-0 flex">
+                      {advisorsFirst ? (
+                        <ChapterAdvisors />
+                      ) : (
+                        <EBoardCard />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex">
+                      {advisorsFirst ? (
+                        <EBoardCard />
+                      ) : (
+                        <ChapterAdvisors />
+                      )}
+                    </div>
                   </section>
                 );
+              }
               case "upcomingEvents":
                 return (
                   <section key={key}>
@@ -266,8 +290,6 @@ const Index = () => {
                     <RecentActivity />
                   </section>
                 );
-              case "eBoard":
-                return null;
               default:
                 return null;
             }

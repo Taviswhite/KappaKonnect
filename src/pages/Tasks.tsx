@@ -55,16 +55,21 @@ const Tasks = () => {
     },
   });
 
-  // Fetch profiles for assignee filter
+  // Fetch profiles for assignee filter (exclude admin account so it stays in background)
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles-for-filter"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: profilesData, error } = await supabase
         .from("profiles")
         .select("user_id, full_name")
         .order("full_name");
       if (error) return [];
-      return data || [];
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const adminUserIds = new Set(adminRoles?.map((r) => r.user_id) || []);
+      return (profilesData || []).filter((p) => !adminUserIds.has(p.user_id));
     },
   });
 

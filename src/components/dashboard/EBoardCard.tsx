@@ -1,10 +1,11 @@
-import { Users } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import XScroll from "@/components/ui/x-scroll";
 
 type EBoardMember = {
   id: string;
@@ -38,9 +39,43 @@ const EBOARD_TITLES: Record<string, string> = {
   "Grant Hill": "Lt. Strategist",
 };
 
-export function EBoardCard() {
-  const navigate = useNavigate();
+const CARD_CLASS =
+  "flex flex-col items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2.5 py-2.5";
 
+function MemberCard({
+  member,
+  index,
+}: {
+  member: EBoardMember;
+  index: number;
+}) {
+  return (
+    <div
+      className={cn("w-[120px] shrink-0", CARD_CLASS)}
+      style={{ animationDelay: `${index * 40}ms` }}
+    >
+      <Avatar className="w-10 h-10 border border-primary shrink-0">
+        <AvatarImage src={member.avatar_url || undefined} />
+        <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
+          {member.full_name?.split(" ").map((n) => n[0]).join("") || "E"}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0 flex flex-col items-center text-center w-full">
+        <p className="font-semibold text-xs text-foreground truncate w-full">
+          {member.full_name}
+        </p>
+        {member.position && (
+          <p className="text-[11px] text-muted-foreground truncate w-full">
+            {member.position}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function EBoardCard() {
+  const [expanded, setExpanded] = useState(false);
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["dashboard-eboard"],
     queryFn: async () => {
@@ -63,11 +98,17 @@ export function EBoardCard() {
         throw rolesError;
       }
 
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const adminUserIds = new Set(adminRoles?.map((r) => r.user_id) || []);
+
       const eboardUserIds = new Set(roles?.map((r) => r.user_id) || []);
 
       const eboardMembers: EBoardMember[] =
         profiles
-          ?.filter((p) => eboardUserIds.has((p as any).user_id))
+          ?.filter((p) => eboardUserIds.has((p as any).user_id) && !adminUserIds.has((p as any).user_id))
           .map((p) => ({
             id: p.id as string,
             full_name: (p as any).full_name,
@@ -104,74 +145,68 @@ export function EBoardCard() {
   });
 
   return (
-    <div className="glass-card rounded-xl p-2.5 sm:p-3 animate-fade-in card-hover h-full flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">
-            Executive Board
-          </h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Chapter leadership at a glance.
-          </p>
-        </div>
-        <div className="icon-container icon-container-primary">
-          <Users className="w-4 h-4" strokeWidth={2} />
-        </div>
+    <div className="glass-card rounded-xl p-2.5 sm:p-3 animate-fade-in card-hover h-full flex flex-col min-w-0 overflow-hidden">
+      <div className="flex items-center justify-between mb-3 shrink-0">
+        <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">
+          Executive Board
+        </h2>
+        {members.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[11px] text-muted-foreground h-7 px-2 gap-1"
+            onClick={() => setExpanded((e) => !e)}
+          >
+            {expanded ? (
+              <>
+                Show less <ChevronUp className="w-3 h-3" />
+              </>
+            ) : (
+              <>
+                View all <ChevronDown className="w-3 h-3" />
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="rounded-xl bg-muted/50 animate-pulse h-16"
-              style={{ animationDelay: `${i * 80}ms` }}
-            />
-          ))}
-        </div>
-      ) : members.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="icon-container icon-container-muted mb-3">
-            <Users className="w-6 h-6" strokeWidth={2} />
+      <div className="flex-1 min-h-0 flex flex-col">
+        {isLoading ? (
+          <div className="grid grid-cols-3 gap-2.5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl bg-muted/50 animate-pulse h-16"
+                style={{ animationDelay: `${i * 80}ms` }}
+              />
+            ))}
           </div>
-          <p className="font-semibold text-foreground">No E-board members yet</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
-            Assign members the E-board role to feature them here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-1.5 flex-1">
-          {members.map((member, index) => (
-            <div
-              key={member.id}
-              className={cn(
-                "w-full flex flex-col items-center gap-1.5 rounded-xl border border-border bg-muted/30 px-2.5 py-2.5",
-              )}
-              style={{ animationDelay: `${index * 40}ms` }}
-            >
-              <Avatar className="w-8 h-8 border border-primary shrink-0">
-                <AvatarImage src={member.avatar_url || undefined} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-display">
-                  {member.full_name
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("") || "E"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0 flex flex-col items-center text-center">
-                <p className="font-semibold text-xs text-foreground truncate w-full">
-                  {member.full_name}
-                </p>
-                {member.position && (
-                  <p className="text-[11px] text-muted-foreground truncate w-full">
-                    {member.position}
-                  </p>
-                )}
-              </div>
+        ) : members.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="icon-container icon-container-muted mb-3">
+              <Users className="w-6 h-6" strokeWidth={2} />
             </div>
-          ))}
-        </div>
-      )}
+            <p className="font-semibold text-foreground">No E-board members yet</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
+              Assign members the E-board role to feature them here.
+            </p>
+          </div>
+        ) : expanded ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pb-1 overflow-auto min-h-0">
+            {members.map((member, index) => (
+              <MemberCard key={member.id} member={member} index={index} />
+            ))}
+          </div>
+        ) : (
+          <XScroll className="w-full overflow-x-auto min-h-[140px]">
+            <div className="flex gap-2 pb-1">
+              {members.map((member, index) => (
+                <MemberCard key={member.id} member={member} index={index} />
+              ))}
+            </div>
+          </XScroll>
+        )}
+      </div>
     </div>
   );
 }

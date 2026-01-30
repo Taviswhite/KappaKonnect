@@ -50,7 +50,8 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: SidebarProps) {
   const location = useLocation();
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("admin");
+  // Admin Panel for admin and e_board only (admin account never shown as a member elsewhere)
+  const canSeeAdminPanel = hasRole("admin") || hasRole("e_board");
   const navItems = menuItems;
 
   // Close mobile menu on route change
@@ -143,8 +144,8 @@ export function Sidebar({ mobileOpen, setMobileOpen, collapsed, setCollapsed }: 
             );
           })}
           
-          {/* Admin Panel Link - Only visible to admins */}
-          {isAdmin && (
+          {/* Admin Panel Link - Only visible to admin and e_board */}
+          {canSeeAdminPanel && (
             <Link
               to="/admin"
               className={cn(

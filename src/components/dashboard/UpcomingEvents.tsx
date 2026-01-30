@@ -1,13 +1,13 @@
 import { Calendar as CalendarIcon, MapPin, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { MiniCalendar } from "@/components/ui/mini-calendar";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isSameDay } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const typeColors: Record<string, string> = {
   meeting: "bg-primary/20 text-primary border-primary/30",
@@ -29,12 +29,20 @@ export function UpcomingEvents() {
         .select("*")
         .gte("start_time", new Date().toISOString())
         .order("start_time", { ascending: true })
-        .limit(4);
+        .limit(20);
 
       if (error) throw error;
       return data;
     },
   });
+
+  const eventDates = useMemo(
+    () =>
+      new Set(
+        events.map((e) => format(new Date(e.start_time), "yyyy-MM-dd"))
+      ),
+    [events]
+  );
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover">
@@ -77,12 +85,11 @@ export function UpcomingEvents() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)] items-start">
-          <div className="rounded-xl border border-border bg-muted/20 p-2 sm:p-3">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="mx-auto"
+          <div className="rounded-xl border border-border bg-muted/20 p-2 sm:p-3 w-full max-w-[350px]">
+            <MiniCalendar
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              eventDates={eventDates}
             />
           </div>
 

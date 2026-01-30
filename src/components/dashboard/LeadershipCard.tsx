@@ -125,11 +125,17 @@ export function LeadershipCard() {
         throw rolesError;
       }
 
+      const { data: adminRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const adminUserIds = new Set(adminRoles?.map((r) => r.user_id) || []);
+
       const eboardUserIds = new Set(roles?.map((r) => r.user_id) || []);
 
       const members: EBoardMember[] =
         profiles
-          ?.filter((p) => eboardUserIds.has((p as any).user_id))
+          ?.filter((p) => eboardUserIds.has((p as any).user_id) && !adminUserIds.has((p as any).user_id))
           .map((p) => ({
             id: p.id as string,
             full_name: (p as any).full_name,
