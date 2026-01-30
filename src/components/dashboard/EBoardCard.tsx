@@ -146,8 +146,8 @@ export function EBoardCard() {
 
   return (
     <div className="glass-card rounded-xl p-2.5 sm:p-3 animate-fade-in card-hover h-full flex flex-col min-w-0 overflow-hidden">
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">
+      <div className="flex items-center justify-between mb-4 shrink-0">
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           Executive Board
         </h2>
         {members.length > 0 && (

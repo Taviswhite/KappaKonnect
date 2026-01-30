@@ -25,7 +25,7 @@ export function AttendanceCheckInCard() {
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover h-full flex flex-col">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
             Attendance Check-In

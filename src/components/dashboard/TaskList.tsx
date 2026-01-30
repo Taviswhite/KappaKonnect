@@ -42,7 +42,7 @@ export function TaskList() {
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           My Tasks
         </h2>

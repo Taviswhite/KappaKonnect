@@ -26,27 +26,32 @@ export function FeaturedAlumni() {
   const { data: featured = [], isLoading } = useQuery({
     queryKey: ["alumni-featured"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("alumni")
-        .select("id, full_name, avatar_url, industry, crossing_year, chapter, line_order, is_featured")
-        .eq("is_featured", true)
-        .order("crossing_year", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("alumni")
+          .select("id, full_name, avatar_url, industry, crossing_year, chapter, line_order, is_featured")
+          .eq("is_featured", true)
+          .order("crossing_year", { ascending: false });
 
-      if (error) {
-        console.error("Error loading featured alumni:", error);
-        throw error;
+        if (error) {
+          console.warn("Featured alumni query failed (table/RLS may differ):", error.message);
+          return [];
+        }
+        return (data ?? []) as FeaturedAlumniRow[];
+      } catch (e) {
+        console.warn("Error loading featured alumni:", e);
+        return [];
       }
-
-      return (data ?? []) as FeaturedAlumniRow[];
     },
     enabled: !!user,
+    retry: false,
   });
 
   const entries = featured;
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           Featured Alumni
         </h2>

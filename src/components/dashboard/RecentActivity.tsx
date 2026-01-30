@@ -13,7 +13,7 @@ export function RecentActivity() {
 
   return (
     <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover">
-      <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5">
+      <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
         Recent Activity
       </h2>
 

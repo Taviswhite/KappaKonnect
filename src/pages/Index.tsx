@@ -144,13 +144,14 @@ const Index = () => {
           .map((key) => {
             switch (key) {
               case "stats":
+              case "recentActivity": {
+                const statsAndActivityIndex = dashboardOrder.findIndex(
+                  (k) => k === "stats" || k === "recentActivity"
+                );
+                if (key !== dashboardOrder[statsAndActivityIndex]) return null;
                 return (
-                  <section key={key}>
-                    <div
-                      className={`grid grid-cols-2 ${
-                        canViewSensitiveStats ? "lg:grid-cols-2" : "lg:grid-cols-1"
-                      } gap-4 md:gap-6`}
-                    >
+                  <section key="stats-recentActivity" className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                    <div className="flex flex-col gap-4">
                       {canViewSensitiveStats && (
                         <StatCard
                           title="Active Members"
@@ -170,8 +171,12 @@ const Index = () => {
                         iconColor="accent"
                       />
                     </div>
+                    <div className="min-h-0">
+                      <RecentActivity />
+                    </div>
                   </section>
                 );
+              }
               case "quickActions":
                 return (
                   <section key={key} className="w-full">
@@ -282,12 +287,6 @@ const Index = () => {
                 return (
                   <section key={key}>
                     <TaskList />
-                  </section>
-                );
-              case "recentActivity":
-                return (
-                  <section key={key}>
-                    <RecentActivity />
                   </section>
                 );
               default:

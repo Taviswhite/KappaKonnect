@@ -27,7 +27,7 @@ export function NextEventCard() {
   if (isLoading) {
     return (
       <div className="glass-card rounded-xl p-4 sm:p-6 animate-fade-in card-hover h-full min-h-[140px] flex flex-col">
-        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5">
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-4">
           Next Event
         </h2>
         <div className="flex-1 rounded-xl bg-muted/50 animate-pulse" />
