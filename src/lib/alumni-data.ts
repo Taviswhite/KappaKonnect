@@ -84,6 +84,19 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
     return `${parts[0]} ${parts[parts.length - 1]}`;
   };
 
+  /** Prefer the row whose avatar_url filename looks like it belongs to this person (avoids showing wrong pic when DB has duplicate rows). */
+  const avatarMatchScore = (fullName: string | null | undefined, avatarUrl: string | null | undefined): number => {
+    if (!avatarUrl || typeof avatarUrl !== "string" || !fullName?.trim()) return 0;
+    const url = avatarUrl.toLowerCase();
+    const tokens = (fullName as string)
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, " ")
+      .split(/\s+/)
+      .filter((p) => p.length > 1);
+    const slugTokens = tokens.flatMap((t) => [t, t.replace(/-/g, "_"), t.replace(/-/g, ".")]);
+    return slugTokens.filter((token) => url.includes(token)).length;
+  };
+
   const list: AlumniRecord[] = [];
 
   for (const alum of rows as AlumniRecord[]) {
@@ -119,7 +132,12 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
           alum.avatar_url,
         ].filter(Boolean).length;
 
-        if (newScore > existingScore) {
+        const preferNew =
+          newScore > existingScore ||
+          (newScore === existingScore &&
+            avatarMatchScore(alum.full_name, alum.avatar_url) >
+              avatarMatchScore(existing.full_name, existing.avatar_url));
+        if (preferNew) {
           list[existingIdx] = alum;
         }
         continue;
@@ -157,7 +175,12 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
             alum.avatar_url,
           ].filter(Boolean).length;
 
-          if (newScore > existingScore) {
+          const preferNew =
+            newScore > existingScore ||
+            (newScore === existingScore &&
+              avatarMatchScore(alum.full_name, alum.avatar_url) >
+                avatarMatchScore(existing.full_name, existing.avatar_url));
+          if (preferNew) {
             list[existingIdx] = alum;
           }
           continue;
@@ -248,7 +271,14 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
   for (const alum of enriched) {
     const key = linePositionKey(alum);
     const existing = byLinePosition.get(key);
-    if (!existing || careerScore(alum) > careerScore(existing)) {
+    const existingCareer = existing ? careerScore(existing) : -1;
+    const newCareer = careerScore(alum);
+    const preferAlum =
+      newCareer > existingCareer ||
+      (newCareer === existingCareer &&
+        avatarMatchScore(alum.full_name, alum.avatar_url) >
+          avatarMatchScore(existing?.full_name, existing?.avatar_url));
+    if (!existing || preferAlum) {
       byLinePosition.set(key, alum);
     }
   }

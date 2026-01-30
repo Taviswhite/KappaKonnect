@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlumniAvatar } from "@/components/AlumniAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Mail, MapPin, GraduationCap, Linkedin, ArrowLeft, Briefcase, Search, Phone, User, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarUrlForAlumni, formatCrossingDisplay } from "@/lib/utils";
+import { formatCrossingDisplay } from "@/lib/utils";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -238,17 +238,16 @@ export default function AlumniProfile() {
             <Card className="glass-card overflow-hidden">
               <CardContent className="p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-                  <Avatar className="w-28 h-28 sm:w-36 sm:h-36 border-4 border-primary/20 shadow-xl">
-                    <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-3xl sm:text-4xl font-display">
-                      {alum.full_name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <AlumniAvatar
+                    alum={alum}
+                    className="w-28 h-28 sm:w-36 sm:h-36 border-4 border-primary/20 shadow-xl"
+                    fallbackText={alum.full_name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  />
                   <div className="flex-1 text-center sm:text-left space-y-3">
                     <div>
                       <h2 className="text-2xl sm:text-3xl font-display font-bold">

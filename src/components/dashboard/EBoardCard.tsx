@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { cn, resolveAvatarUrl } from "@/lib/utils";
 import XScroll from "@/components/ui/x-scroll";
 
 type EBoardMember = {
@@ -55,7 +55,7 @@ function MemberCard({
       style={{ animationDelay: `${index * 40}ms` }}
     >
       <Avatar className="w-10 h-10 border border-primary shrink-0">
-        <AvatarImage src={member.avatar_url || undefined} />
+        <AvatarImage src={resolveAvatarUrl(member.avatar_url) || undefined} />
         <AvatarFallback className="bg-primary text-primary-foreground text-xs font-display">
           {member.full_name?.split(" ").map((n) => n[0]).join("") || "E"}
         </AvatarFallback>

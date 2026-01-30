@@ -24,12 +24,15 @@ import {
   Calendar,
   Mail,
   Phone,
-  BookOpen
+  BookOpen,
+  Briefcase,
+  MapPin,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveAvatarUrl } from "@/lib/utils";
 
 export default function Profile() {
   const { profile, roles, user } = useAuth();
@@ -48,6 +51,10 @@ export default function Profile() {
     crossing_year: "",
     line_name: "",
     chapter: "",
+    current_company: "",
+    current_position: "",
+    industry: "",
+    location: "",
   });
 
   useEffect(() => {
@@ -63,6 +70,10 @@ export default function Profile() {
         crossing_year: (profile as any).crossing_year?.toString() || "",
         line_name: (profile as any).line_name || "",
         chapter: (profile as any).chapter || "",
+        current_company: (profile as any).current_company || "",
+        current_position: (profile as any).current_position || "",
+        industry: (profile as any).industry || "",
+        location: (profile as any).location || "",
       });
     }
   }, [profile]);
@@ -93,6 +104,10 @@ export default function Profile() {
           crossing_year: profileData.crossing_year ? parseInt(profileData.crossing_year) : null,
           line_name: profileData.line_name,
           chapter: profileData.chapter,
+          current_company: profileData.current_company || null,
+          current_position: profileData.current_position || null,
+          industry: profileData.industry || null,
+          location: profileData.location || null,
         })
         .eq("user_id", user.id);
 
@@ -136,7 +151,7 @@ export default function Profile() {
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-12 sm:-mt-16 mb-6">
               <div className="relative">
                 <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-xl">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarImage src={resolveAvatarUrl(profile?.avatar_url) || undefined} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-2xl sm:text-3xl">
                     {profileData.full_name ? getInitials(profileData.full_name) : "?"}
                   </AvatarFallback>
@@ -351,6 +366,69 @@ export default function Profile() {
                         setProfileData((p) => ({ ...p, graduation_year: e.target.value }))
                       }
                       placeholder="2025"
+                      className="bg-secondary/30"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Career Info */}
+              <div>
+                <h3 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-primary" />
+                  Career Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current_position">Current Position</Label>
+                    <Input
+                      id="current_position"
+                      value={profileData.current_position}
+                      onChange={(e) =>
+                        setProfileData((p) => ({ ...p, current_position: e.target.value }))
+                      }
+                      placeholder="e.g., Analyst"
+                      className="bg-secondary/30"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="current_company">Current Company</Label>
+                    <Input
+                      id="current_company"
+                      value={profileData.current_company}
+                      onChange={(e) =>
+                        setProfileData((p) => ({ ...p, current_company: e.target.value }))
+                      }
+                      placeholder="e.g., Goldman Sachs"
+                      className="bg-secondary/30"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="industry">Industry</Label>
+                    <Input
+                      id="industry"
+                      value={profileData.industry}
+                      onChange={(e) =>
+                        setProfileData((p) => ({ ...p, industry: e.target.value }))
+                      }
+                      placeholder="e.g., Finance, Technology"
+                      className="bg-secondary/30"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location" className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      Location
+                    </Label>
+                    <Input
+                      id="location"
+                      value={profileData.location}
+                      onChange={(e) =>
+                        setProfileData((p) => ({ ...p, location: e.target.value }))
+                      }
+                      placeholder="City, State"
                       className="bg-secondary/30"
                     />
                   </div>

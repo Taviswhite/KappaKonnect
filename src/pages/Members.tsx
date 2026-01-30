@@ -15,11 +15,20 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, X } from "lucide-react";
-import { cn, formatCrossingDisplay } from "@/lib/utils";
+import { Search, Filter, Mail, Phone, Grid, List, UserPlus, Users, X, Linkedin } from "lucide-react";
+import { cn, formatCrossingDisplay, resolveAvatarUrl } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchAlumniList } from "@/lib/alumni-data";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const roleColors: Record<string, string> = {
   admin: "bg-primary/20 text-primary border-primary/30",
@@ -41,6 +50,7 @@ const EBOARD_ORDER: string[] = [
 ];
 
 const Members = () => {
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -48,6 +58,7 @@ const Members = () => {
     role: "all",
     committee: "all",
   });
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
   // Fetch profiles from database (exclude admin accounts)
   const { data: profiles = [], isLoading, error: profilesError } = useQuery({
@@ -113,15 +124,27 @@ const Members = () => {
     },
   });
 
+  // Use same alumni list as Alumni portal so counts match (195 etc.)
+  const { data: alumniList = [] } = useQuery({
+    queryKey: ["alumni"],
+    queryFn: () => fetchAlumniList(user),
+    enabled: !!user?.id,
+  });
+
   const getRoleForUser = (userId: string) => {
     const role = userRoles.find(r => r.user_id === userId);
     return role?.role || "member";
   };
 
-  // Get unique committees
-  const committees = [...new Set(profiles.map(p => p.committee).filter(Boolean))];
+  // Exclude alumni from Members page (they live in Alumni portal)
+  const memberProfiles = profiles.filter(
+    (m) => getRoleForUser(m.user_id) !== "alumni"
+  );
 
-  const filteredMembers = profiles.filter((m) => {
+  // Get unique committees from non-alumni members
+  const committees = [...new Set(memberProfiles.map(p => p.committee).filter(Boolean))];
+
+  const filteredMembers = memberProfiles.filter((m) => {
     const matchesSearch = 
       m.full_name.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -169,30 +192,12 @@ const Members = () => {
     setFilters({ role: "all", committee: "all" });
   };
 
-  const totalMembers = profiles.length;
-  
-  // Calculate active members (everyone except alumni)
-  const activeMembers = profiles.filter(
-    (m) => getRoleForUser(m.user_id) !== "alumni"
-  ).length;
-  
-  // Calculate alumni count
-  const alumniCount = profiles.filter(
-    (m) => getRoleForUser(m.user_id) === "alumni"
-  ).length;
-
-  // Calculate "New This Year" - members from the latest crossing year
-  // Find the latest crossing year
-  const crossingYears = profiles
-    .map((p) => (p as any).crossing_year)
-    .filter((year): year is number => year !== null && year !== undefined);
-  
-  const latestCrossingYear = crossingYears.length > 0 ? Math.max(...crossingYears) : 0;
-  
-  // Count members with the latest crossing year
-  const newThisYear = profiles.filter(
-    (m) => (m as any).crossing_year === latestCrossingYear && latestCrossingYear > 0
-  ).length;
+  // Active = non-alumni (current chapter members). Same as list on this page.
+  const activeMembers = memberProfiles.length;
+  // Alumni count = same as Alumni portal (fetchAlumniList length, e.g. 195)
+  const alumniCount = alumniList.length;
+  // Total = active + alumni; no double count (active and alumni are disjoint)
+  const totalMembers = activeMembers + alumniCount;
 
   return (
     <AppLayout>
@@ -251,7 +256,6 @@ const Members = () => {
                              <SelectItem value="e_board">E-Board</SelectItem>
                              <SelectItem value="committee_chairman">Committee Chairman</SelectItem>
                              <SelectItem value="member">Member</SelectItem>
-                             <SelectItem value="alumni">Alumni</SelectItem>
                            </SelectContent>
                          </Select>
                        </div>
@@ -296,22 +300,14 @@ const Members = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="glass-card rounded-lg p-4 text-center">
             <p className="text-2xl font-display font-bold text-foreground">{totalMembers}</p>
             <p className="text-sm text-muted-foreground">Total Members</p>
           </div>
           <div className="glass-card rounded-lg p-4 text-center">
             <p className="text-2xl font-display font-bold text-foreground">{activeMembers}</p>
-            <p className="text-sm text-muted-foreground">Active</p>
-          </div>
-          <div className="glass-card rounded-lg p-4 text-center">
-            <p className="text-2xl font-display font-bold text-foreground">{alumniCount}</p>
-            <p className="text-sm text-muted-foreground">Alumni</p>
-          </div>
-          <div className="glass-card rounded-lg p-4 text-center">
-            <p className="text-2xl font-display font-bold text-foreground">{newThisYear}</p>
-            <p className="text-sm text-muted-foreground">New This Year</p>
+            <p className="text-sm text-muted-foreground">Active Members</p>
           </div>
         </div>
 
@@ -350,10 +346,11 @@ const Members = () => {
                   key={member.id}
                   className="glass-card rounded-xl p-6 hover:scale-[1.02] transition-all cursor-pointer animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => setSelectedMember(member)}
                 >
                   <div className="flex items-start gap-4">
                     <Avatar className="w-16 h-16 border-2 border-primary">
-                      <AvatarImage src={member.avatar_url || undefined} />
+                      <AvatarImage src={resolveAvatarUrl(member.avatar_url) || undefined} />
                       <AvatarFallback className="bg-primary text-primary-foreground font-display">
                         {member.full_name.split(" ").map((n) => n[0]).join("")}
                       </AvatarFallback>
@@ -382,24 +379,7 @@ const Members = () => {
                       )}
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-border space-y-2">
-                    <a
-                      href={`mailto:${member.email}`}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      <Mail className="w-4 h-4" />
-                      {member.email}
-                    </a>
-                    {member.phone && (
-                      <a
-                        href={`tel:${member.phone}`}
-                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <Phone className="w-4 h-4" />
-                        {member.phone}
-                      </a>
-                    )}
-                  </div>
+                  {/* Contact details moved into expanded member dialog */}
                 </div>
               );
             })}
@@ -426,7 +406,7 @@ const Members = () => {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="w-10 h-10 border border-primary">
-                              <AvatarImage src={member.avatar_url || undefined} />
+                              <AvatarImage src={resolveAvatarUrl(member.avatar_url) || undefined} />
                               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                 {member.full_name.split(" ").map((n) => n[0]).join("")}
                               </AvatarFallback>
@@ -470,6 +450,104 @@ const Members = () => {
             </div>
           </div>
         )}
+
+        {/* Member detail dialog (similar to Alumni detail behavior) */}
+        <Dialog open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
+          <DialogContent className="max-w-lg">
+            {selectedMember && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedMember.full_name}</DialogTitle>
+                  <DialogDescription>
+                    {formatCrossingDisplay(selectedMember) || "Member details"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Role
+                    </p>
+                    <p className="text-sm">
+                      {getRoleForUser(selectedMember.user_id)
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                    </p>
+                  </div>
+                  {selectedMember.committee && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Committee
+                      </p>
+                      <p className="text-sm">{selectedMember.committee}</p>
+                    </div>
+                  )}
+                  {(selectedMember.current_position || selectedMember.current_company || selectedMember.industry) && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Career
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedMember.current_position && selectedMember.current_company
+                          ? `${selectedMember.current_position} at ${selectedMember.current_company}`
+                          : selectedMember.current_position || selectedMember.current_company}
+                      </p>
+                      {selectedMember.industry && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Industry: {selectedMember.industry}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {selectedMember.location && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Location
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedMember.location}
+                      </p>
+                    </div>
+                  )}
+                  {selectedMember.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <a
+                        href={`mailto:${selectedMember.email}`}
+                        className="text-sm text-primary hover:underline break-all"
+                      >
+                        {selectedMember.email}
+                      </a>
+                    </div>
+                  )}
+                  {selectedMember.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <a
+                        href={`tel:${selectedMember.phone}`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {selectedMember.phone}
+                      </a>
+                    </div>
+                  )}
+                  {selectedMember.linkedin_url && (
+                    <div className="flex items-center gap-2">
+                      <Linkedin className="w-4 h-4 text-muted-foreground" />
+                      <a
+                        href={selectedMember.linkedin_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-primary hover:underline break-all"
+                      >
+                        View LinkedIn profile
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

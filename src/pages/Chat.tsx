@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Send, Search, Hash, Users, Pin, MoreVertical, Smile, Paperclip, Edit, Trash2, LogOut } from "lucide-react";
-import { cn, formatCrossingDisplay } from "@/lib/utils";
+import { cn, formatCrossingDisplay, resolveAvatarUrl } from "@/lib/utils";
 import { CreateChannelDialog } from "@/components/dialogs/CreateChannelDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -561,7 +561,7 @@ function ChannelMembersDialog({ channelId, channelName }: { channelId: string; c
               return (
                 <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50">
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={member.profiles?.avatar_url || undefined} />
+                    <AvatarImage src={resolveAvatarUrl(member.profiles?.avatar_url) || undefined} />
                     <AvatarFallback>{member.profiles?.full_name?.[0] || "?"}</AvatarFallback>
                   </Avatar>
                   <div>

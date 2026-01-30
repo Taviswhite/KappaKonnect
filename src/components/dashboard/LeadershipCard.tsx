@@ -3,7 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarUrlForAlumni } from "@/lib/utils";
+import { resolveAvatarUrl } from "@/lib/utils";
+import { AlumniAvatar } from "@/components/AlumniAvatar";
 
 type AdvisorAlumni = {
   id: string;
@@ -204,7 +205,7 @@ export function LeadershipCard() {
                   className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-muted/30 px-2 py-1.5"
                 >
                   <Avatar className="w-12 h-12 border border-primary shrink-0">
-                    <AvatarImage src={member.avatar_url || undefined} />
+                    <AvatarImage src={resolveAvatarUrl(member.avatar_url) || undefined} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-sm font-display">
                       {member.full_name
                         ?.split(" ")
@@ -243,13 +244,7 @@ export function LeadershipCard() {
                   key={alum.id}
                   className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-muted/30 px-2 py-1.5"
                 >
-                  <Avatar className="w-12 h-12 border border-primary shrink-0">
-                    <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-display">
-                      {alum.full_name?.split(" ").map((n) => n[0]).join("") ||
-                        "A"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <AlumniAvatar alum={alum} className="w-12 h-12 border border-primary shrink-0" />
                   <div className="flex-1 min-w-0 flex flex-col items-center text-center">
                     <p className="font-semibold text-xs leading-tight text-foreground truncate w-full">
                       {alum.full_name}

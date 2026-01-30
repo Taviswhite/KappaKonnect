@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Search, GraduationCap } from "lucide-react";
 import { formatCrossingDisplay, avatarUrlForAlumni } from "@/lib/utils";
+import { AlumniAvatar } from "@/components/AlumniAvatar";
 import { CreateAlumniDialog } from "@/components/dialogs/CreateAlumniDialog";
 import { FeaturedAlumni } from "@/components/dashboard/FeaturedAlumni";
 import { useQuery } from "@tanstack/react-query";
@@ -260,12 +261,7 @@ const Alumni = () => {
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
                         <div className="flex items-center gap-4">
-                          <Avatar className="w-16 h-16 border-2 border-primary shrink-0">
-                            <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-                            <AvatarFallback className="bg-primary text-primary-foreground font-display">
-                              {alum.full_name?.split(" ").map((n: string) => n[0]).join("") || "A"}
-                            </AvatarFallback>
-                          </Avatar>
+                          <AlumniAvatar alum={alum} className="w-16 h-16 border-2 border-primary shrink-0" />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-display font-bold text-lg text-foreground truncate">
                               {alum.full_name}

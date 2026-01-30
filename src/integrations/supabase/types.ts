@@ -385,6 +385,10 @@ export type Database = {
           line_name: string | null
           line_order: number | null
           linkedin_url: string | null
+          current_company: string | null
+          current_position: string | null
+          industry: string | null
+          location: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -403,6 +407,10 @@ export type Database = {
           line_name?: string | null
           line_order?: number | null
           linkedin_url?: string | null
+          current_company?: string | null
+          current_position?: string | null
+          industry?: string | null
+          location?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -421,6 +429,10 @@ export type Database = {
           line_name?: string | null
           line_order?: number | null
           linkedin_url?: string | null
+          current_company?: string | null
+          current_position?: string | null
+          industry?: string | null
+          location?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string

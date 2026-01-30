@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { formatCrossingDisplay } from "@/lib/utils";
+import { formatCrossingDisplay, resolveAvatarUrl } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -307,7 +307,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2">
                 <Avatar className="w-8 h-8 border-2 border-primary">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
+                  <AvatarImage src={resolveAvatarUrl(profile?.avatar_url) || undefined} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                     {profile?.full_name ? getInitials(profile.full_name) : "?"}
                   </AvatarFallback>

@@ -1,12 +1,12 @@
 import { GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlumniAvatar } from "@/components/AlumniAvatar";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarUrlForAlumni, formatCrossingDisplay } from "@/lib/utils";
+import { formatCrossingDisplay } from "@/lib/utils";
 
 type FeaturedAlumniRow = {
   id: string;
@@ -96,12 +96,7 @@ export function FeaturedAlumni() {
                 className="rounded-xl border border-border bg-muted/30 hover:bg-muted/50 p-3 flex flex-col items-center gap-2 card-hover card-press text-center transition-colors duration-150"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
-                  <AvatarImage src={avatarUrlForAlumni(row) || undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-display">
-                    {row.full_name?.split(" ").map((n) => n[0]).join("") || "A"}
-                  </AvatarFallback>
-                </Avatar>
+                <AlumniAvatar alum={row} className="w-12 h-12 border-2 border-primary shrink-0" />
                 <span className="font-semibold text-sm text-foreground truncate w-full">
                   {row.full_name}
                 </span>

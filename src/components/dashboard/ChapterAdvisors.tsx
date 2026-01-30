@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AlumniAvatar } from "@/components/AlumniAvatar";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarUrlForAlumni } from "@/lib/utils";
 import XScroll from "@/components/ui/x-scroll";
 
 // Chapter Advisor names to display (deference order: alphabetical by last name)
@@ -20,6 +19,7 @@ const ADVISOR_NAMES = [
 type AdvisorAlumni = {
   id: string;
   full_name: string | null;
+  email?: string | null;
   avatar_url?: string | null;
   industry?: string | null;
   crossing_year?: number | null;
@@ -42,12 +42,7 @@ function AdvisorCard({
       className={ADVISOR_CARD_CLASS}
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      <Avatar className="w-10 h-10 border border-primary shrink-0">
-        <AvatarImage src={avatarUrlForAlumni(alum) || undefined} />
-        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-display">
-          {alum.full_name?.split(" ").map((n) => n[0]).join("") || "A"}
-        </AvatarFallback>
-      </Avatar>
+      <AlumniAvatar alum={alum} className="w-10 h-10 border border-primary shrink-0" />
       <div className="flex-1 min-w-0 flex flex-col items-center text-center w-full">
         <p className="font-semibold text-xs text-foreground truncate w-full">
           {alum.full_name}
@@ -72,7 +67,7 @@ export function ChapterAdvisors() {
       
       const { data, error } = await supabase
         .from("alumni")
-        .select("id, full_name, avatar_url, industry, crossing_year, chapter, line_order")
+        .select("id, full_name, email, avatar_url, industry, crossing_year, chapter, line_order")
         .or(orConditions);
       if (error) throw error;
       

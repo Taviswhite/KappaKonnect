@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { ChapterHealthChart } from "@/components/ui/chapter-health-chart";
 import { LineGraphStatistics } from "@/components/ui/line-graph-statistics";
-import { cn, formatCrossingDisplay } from "@/lib/utils";
+import { cn, formatCrossingDisplay, resolveAvatarUrl } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -1194,7 +1194,7 @@ const AdminPanel = () => {
                         <TableRow key={member.id} className="hover:bg-secondary/30">
                           <TableCell>
                             <Avatar className="w-10 h-10 border border-primary">
-                              <AvatarImage src={member.avatar_url || undefined} />
+                              <AvatarImage src={resolveAvatarUrl(member.avatar_url) || undefined} />
                               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                 {member.full_name.split(" ").map((n) => n[0]).join("")}
                               </AvatarFallback>
