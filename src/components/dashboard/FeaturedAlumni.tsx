@@ -27,15 +27,21 @@ export function FeaturedAlumni() {
     queryKey: ["alumni-featured"],
     queryFn: async (): Promise<FeaturedAlumniRow[]> => {
       try {
-        // Minimal select so demo DBs with different columns don't 400
         const { data, error } = await supabase
           .from("alumni")
           .select("id, full_name, avatar_url, is_featured")
           .eq("is_featured", true)
           .order("id", { ascending: true });
 
-        if (error) return [];
-        return (data ?? []) as FeaturedAlumniRow[];
+        if (!error && (data ?? []).length >= 0) return (data ?? []) as FeaturedAlumniRow[];
+        // 400 / missing column: try minimal columns and show first 5
+        const { data: fallback, error: errFallback } = await supabase
+          .from("alumni")
+          .select("id, full_name, avatar_url")
+          .order("id", { ascending: true })
+          .limit(5);
+        if (!errFallback) return (fallback ?? []) as FeaturedAlumniRow[];
+        return [];
       } catch {
         return [];
       }

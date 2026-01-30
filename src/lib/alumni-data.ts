@@ -33,7 +33,7 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
 
   const { data, error } = await supabase
     .from("alumni")
-    .select("*")
+    .select("id, full_name, email, industry, graduation_year, crossing_year, chapter, line_order, line_label, current_company, current_position, location, linkedin_url, avatar_url, user_id")
     .order("graduation_year", { ascending: false });
 
   if (error) {
@@ -45,8 +45,9 @@ export async function fetchAlumniList(user: { id: string } | null | undefined) {
       console.error("RLS policy blocked alumni query. User:", user.id);
       throw new Error("Permission denied. Make sure you're logged in.");
     }
-    console.error("Error fetching alumni:", error);
-    throw error;
+    // 400 / schema mismatch / missing columns: don't break the app
+    console.warn("Alumni fetch failed, returning empty list:", error.message);
+    return [] as AlumniRecord[];
   }
 
   // Skip "Do Not Exist" / DNE placeholders so they never show; numbering stays correct (e.g. Spring 2016 skip 3)

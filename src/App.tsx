@@ -40,6 +40,7 @@ const App = () => (
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/blocked" element={<Blocked />} />
+                <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
                 <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                 <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
                 <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
@@ -54,7 +55,6 @@ const App = () => (
                 <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
