@@ -25,21 +25,18 @@ export function FeaturedAlumni() {
 
   const { data: featured = [], isLoading } = useQuery({
     queryKey: ["alumni-featured"],
-    queryFn: async () => {
+    queryFn: async (): Promise<FeaturedAlumniRow[]> => {
       try {
+        // Minimal select so demo DBs with different columns don't 400
         const { data, error } = await supabase
           .from("alumni")
-          .select("id, full_name, avatar_url, industry, crossing_year, chapter, line_order, is_featured")
+          .select("id, full_name, avatar_url, is_featured")
           .eq("is_featured", true)
-          .order("crossing_year", { ascending: false });
+          .order("id", { ascending: true });
 
-        if (error) {
-          console.warn("Featured alumni query failed (table/RLS may differ):", error.message);
-          return [];
-        }
+        if (error) return [];
         return (data ?? []) as FeaturedAlumniRow[];
-      } catch (e) {
-        console.warn("Error loading featured alumni:", e);
+      } catch {
         return [];
       }
     },
